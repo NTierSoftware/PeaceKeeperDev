@@ -12,8 +12,8 @@ android {
         versionName "1.0"
 
 // https://documentation.onesignal.com/v2.0/docs/android-studio-sdk-installation
-        manifestPlaceholders = [manifestApplicationId          : "${applicationId}",
-                                onesignal_app_id               : "381999bd-5010-4fc7-bce7-89a6ea4dc664",
+        manifestPlaceholders = [manifestApplicationId: "${applicationId}",
+                                onesignal_app_id     : "381999bd-5010-4fc7-bce7-89a6ea4dc664",
                                 onesignal_google_project_number: "550772033740"]
 
     }
@@ -23,7 +23,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    sourceSets { main { java.srcDirs = ['src/main/java', 'src/main/java/activity'] } }
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java', 'src/main/java/activity', 'src/main/java/crypto', 'src/main/java/org.peacekeeper/exception']
+        }
+    }
 }
 
 

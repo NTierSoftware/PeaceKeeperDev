@@ -12,12 +12,14 @@ import android.view.MenuItem;
 
 import com.onesignal.OneSignal;
 
+import org.peacekeeper.crypto.Message;
 import org.slf4j.*;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.util.ContextInitializer;
 
 import org.json.JSONObject;
 
+import org.peacekeeper.util.pkUtility;
 
 public class MainActivity extends AppCompatActivity {
 //begin static
@@ -26,10 +28,12 @@ public class MainActivity extends AppCompatActivity {
     static private final Logger				mLog	= LoggerFactory.getLogger( MainActivity.class );
 //end static
 
+    pkUtility mUtility;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mLog.trace( "OnCreate:\t" );
+        mLog.trace("OnCreate:\t");
+        mUtility = pkUtility.getInstance(this);
         OneSignal.startInit(this)
                 .setNotificationOpenedHandler(new pkNotificationOpenedHandler())
                 .init();
@@ -46,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+
+        Message msg = new Message("test and verify this text");
+        mLog.trace("msg.verify(): " + Boolean.toString(msg.verify()));
     }
 
     @Override

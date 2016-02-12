@@ -2,9 +2,9 @@
     
   <!-- Create a tab delimited file appender for a log in the application's data directory -->
 <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>${DATA_DIR}/logs/GAEL.log</file>
+    <file>${DATA_DIR}/logs/PeaceKeeper.log</file>
     <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-      <fileNamePattern>${DATA_DIR}/logs/GAEL.%i.log.zip</fileNamePattern>
+      <fileNamePattern>${DATA_DIR}/logs/PeaceKeeper.%i.log.zip</fileNamePattern>
       <minIndex>1</minIndex>
       <maxIndex>3</maxIndex>
     </rollingPolicy>
