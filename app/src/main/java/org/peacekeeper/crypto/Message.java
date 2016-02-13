@@ -21,6 +21,8 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 
 import java.security.* ;
+import java.security.cert.X509Certificate;
+import java.util.Date;
 
 
 import org.slf4j.*;
@@ -30,6 +32,7 @@ import org.spongycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.spongycastle.pkcs.PKCS10CertificationRequest;
 import org.spongycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.spongycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
+import org.spongycastle.x509.X509V1CertificateGenerator;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -117,14 +120,21 @@ public void setHash() throws NoSuchAlgorithmException, UnsupportedEncodingExcept
 public String toString() {
     if (this.hash == null) return null;
 
-    String retVal = new BigInteger(1, this.hash).toString(16);
+    String hashStr = new BigInteger(1, this.hash).toString(16);
 
 // Now we need to zero pad it if you actually want the full 32 chars.
-    while (retVal.length() < 32) { retVal = "0" + retVal; }
-    return retVal;
+    while (hashStr.length() < 32) { hashStr = "0" + hashStr; }
+
+
+    StringBuilder retVal = new StringBuilder("Message:\t").append(this.message)
+                            .append("\tHash: ").append(hashStr)
+            ;
+
+    return retVal.toString();
 }
 
 // http://stackoverflow.com/questions/20532912/generating-the-csr-using-bouncycastle-api
+/*
 public void generateCSR(){
     KeyPair pair = this.GenerateKeys();
     PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
@@ -142,6 +152,30 @@ public void generateCSR(){
     PKCS10CertificationRequest csr = p10Builder.build(signer);
 
 }//generateCSR
+*/
+
+
+// http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation#X.509PublicKeyCertificateandCertificationRequestGeneration-Version1CertificateCreation
+public void generateCSR(){
+
+    Date startDate;// = ...;              // time from which certificate is valid
+    Date expiryDate;// = ...;             // time after which certificate is not valid
+    BigInteger serialNumber;// = ...;     // serial number for certificate
+    //KeyPair keyPair = ...;             // EC public/private key pair
+    X509V1CertificateGenerator certGen = new X509V1CertificateGenerator();
+    X500Principal              dnName = new X500Principal("CN=Test CA Certificate");
+    certGen.setSerialNumber(serialNumber);
+    certGen.setIssuerDN(dnName);
+    certGen.setNotBefore(startDate);
+    certGen.setNotAfter(expiryDate);
+    certGen.setSubjectDN(dnName);                       // note: same as issuer
+    certGen.setPublicKey(keyPair.getPublic());
+    certGen.setSignatureAlgorithm("SHA256withECDSA");
+    X509Certificate cert = certGen.generate(this.keyPair.getPrivate(), "SC");
+}//generateCSR
+
+
+
 }//Message
 
 /*PeaceKeeper Cryptographic Security Policy:
