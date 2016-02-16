@@ -147,7 +147,7 @@ public PKCS10CertificationRequest generateCSR(){
     KeyPair pair = this.GenerateKeys();
 
     PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
-                                                       new X500Principal("CN=\"JD\" Requested Test Certificate") //CN = common name
+                                                       new X500Principal("CN=\"JD\"  Requested Test Certificate") //CN = common name
                                                        , pair.getPublic())
                                                    .setLeaveOffEmptyAttributes(true);
 
