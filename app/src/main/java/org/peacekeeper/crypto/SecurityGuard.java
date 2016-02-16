@@ -3,7 +3,7 @@ package org.peacekeeper.crypto;
 
         Asymmetric Key Generation : ECDSA with 256 bits
         Asymmetric Signature : ECDSA for P-256
-        Message Digest : SHA-256
+        SecurityGuard Digest : SHA-256
         Symmetric Key Generation : AES
         Symmetric Key Length : 256
         Symmetric Encryption : AES in CTR (Counter) mode, with appended HMAC.
@@ -14,25 +14,32 @@ package org.peacekeeper.crypto;
 
 import org.peacekeeper.exception.pkErrCode;
 import org.peacekeeper.exception.pkException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.spongycastle.asn1.pkcs.Attribute;
 import org.spongycastle.jce.ECNamedCurveTable;
 import org.spongycastle.jce.spec.ECParameterSpec;
-
-import java.io.UnsupportedEncodingException;
-import java.math.BigInteger;
-
-import java.security.* ;
-import java.security.cert.X509Certificate;
-import java.util.Date;
-
-
-import org.slf4j.*;
 import org.spongycastle.operator.ContentSigner;
 import org.spongycastle.operator.OperatorCreationException;
 import org.spongycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.spongycastle.pkcs.PKCS10CertificationRequest;
 import org.spongycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.spongycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
-import org.spongycastle.x509.X509V1CertificateGenerator;
+
+//import org.spongycastle.pkcs.bc.BcPKCS10CertificationRequestBuilder;
+
+import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
+import java.security.Signature;
+import java.security.SignatureException;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -41,25 +48,28 @@ import ch.qos.logback.classic.util.ContextInitializer;
 
 
 // http://stackoverflow.com/questions/18244630/elliptic-curve-with-digital-signature-algorithm-ecdsa-implementation-on-bouncy
-public class Message {
+public class SecurityGuard {
 //begin static
 static private final LoggerContext		mLoggerContext	= (LoggerContext)LoggerFactory.getILoggerFactory();
 static private final ContextInitializer	mContextInitializer		= new ContextInitializer( mLoggerContext );
-static private final Logger				mLog	= LoggerFactory.getLogger( Message.class );
+static private final Logger				mLog	= LoggerFactory.getLogger( SecurityGuard.class );
 static private KeyPair keyPair = null;
+static private final String spongeyCastle = "SC",
+                            SHA256withECDSA = "SHA256withECDSA";
 //end static
 
 private String message = null;
 private byte[] hash = null, signature = null;
-public Message(final String message){ this.message = message; }
+
+public SecurityGuard(final String message){ this.message = message; }
 
 public KeyPair GenerateKeys()
 {   if (keyPair == null) {
         try {
             ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("P-256");
-            KeyPairGenerator g = KeyPairGenerator.getInstance("ECDSA", "SC");
-            g.initialize(ecSpec, new SecureRandom());
-            keyPair = g.generateKeyPair(); }
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("ECDSA", spongeyCastle);
+            kpg.initialize(ecSpec, new SecureRandom());
+            keyPair = kpg.generateKeyPair(); }
         catch (NoSuchAlgorithmException| NoSuchProviderException| InvalidAlgorithmParameterException x)
         {   keyPair = null;
             pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("GenerateKeys err", x);;
@@ -75,7 +85,7 @@ public byte[] getSignature(){
     if (signature == null)
     try {
         KeyPair pair = this.GenerateKeys();
-        Signature ecdsaSign = Signature.getInstance("SHA256withECDSA", "SC");
+        Signature ecdsaSign = Signature.getInstance(SHA256withECDSA, spongeyCastle);
         ecdsaSign.initSign(pair.getPrivate());
         ecdsaSign.update(this.message.getBytes("UTF-8"));
         signature = ecdsaSign.sign();
@@ -95,15 +105,15 @@ public boolean verify(){
     Signature ecdsaVerify = null;
     boolean retVal = false;
     try {
-        ecdsaVerify = Signature.getInstance("SHA256withECDSA", "SC");
+        ecdsaVerify = Signature.getInstance(SHA256withECDSA, spongeyCastle);
         ecdsaVerify.initVerify(GenerateKeys().getPublic());
         ecdsaVerify.update(this.message.getBytes("UTF-8"));
         retVal = ecdsaVerify.verify( getSignature() );
     } catch (NoSuchAlgorithmException| NoSuchProviderException|
              SignatureException| UnsupportedEncodingException x)
     {   retVal = false;
-        pkException cryptoErr = new pkException(pkErrCode.CRYPTO).set("crypto verify err", x);
-        mLog.error(cryptoErr.toString()); }
+        pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("crypto verify err", x);
+        mLog.error(CRYPTOERR.toString()); }
 
     finally { return retVal; }
 }//verify
@@ -126,67 +136,56 @@ public String toString() {
     while (hashStr.length() < 32) { hashStr = "0" + hashStr; }
 
 
-    StringBuilder retVal = new StringBuilder("Message:\t").append(this.message)
-                            .append("\tHash: ").append(hashStr)
-            ;
+    StringBuilder retVal = new StringBuilder("SecurityGuard:\t").append(this.message)
+                            .append("\tHash: ").append(hashStr);
 
     return retVal.toString();
 }
 
 // http://stackoverflow.com/questions/20532912/generating-the-csr-using-bouncycastle-api
-/*
-public void generateCSR(){
+public PKCS10CertificationRequest generateCSR(){
     KeyPair pair = this.GenerateKeys();
+
     PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
-            new X500Principal("CN=Requested Test Certificate"), pair.getPublic());
-    JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder("SHA256withECDSA");
+                                                       new X500Principal("CN=\"JD\" Requested Test Certificate") //CN = common name
+                                                       , pair.getPublic())
+                                                   .setLeaveOffEmptyAttributes(true);
+
+    JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder(SHA256withECDSA);
     ContentSigner signer = null;
-    try {
-        signer = csBuilder.build(pair.getPrivate());
-    }
+    try { signer = csBuilder.build(pair.getPrivate()); }
     catch (OperatorCreationException x) {
-        pkException cryptoErr = new pkException(pkErrCode.CRYPTO).set("crypto verify err", x);
-        mLog.error(cryptoErr.toString());
-        throw cryptoErr;
+        pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("CSR err", x);
+        mLog.error(CRYPTOERR.toString());
+        throw CRYPTOERR;
     }
-    PKCS10CertificationRequest csr = p10Builder.build(signer);
+
+    //PKCS10CertificationRequest PKCS10csr = p10Builder.build(signer);
+
+    //Attribute[] attr =  PKCS10csr.getAttributes();
+
+    return p10Builder.build(signer);
 
 }//generateCSR
-*/
 
-
-// http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation#X.509PublicKeyCertificateandCertificationRequestGeneration-Version1CertificateCreation
-public void generateCSR(){
-
-    Date startDate;// = ...;              // time from which certificate is valid
-    Date expiryDate;// = ...;             // time after which certificate is not valid
-    BigInteger serialNumber;// = ...;     // serial number for certificate
-    //KeyPair keyPair = ...;             // EC public/private key pair
-    X509V1CertificateGenerator certGen = new X509V1CertificateGenerator();
-    X500Principal              dnName = new X500Principal("CN=Test CA Certificate");
-    certGen.setSerialNumber(serialNumber);
-    certGen.setIssuerDN(dnName);
-    certGen.setNotBefore(startDate);
-    certGen.setNotAfter(expiryDate);
-    certGen.setSubjectDN(dnName);                       // note: same as issuer
-    certGen.setPublicKey(keyPair.getPublic());
-    certGen.setSignatureAlgorithm("SHA256withECDSA");
-    X509Certificate cert = certGen.generate(this.keyPair.getPrivate(), "SC");
-}//generateCSR
-
-
-
-}//Message
+}//SecurityGuard
 
 /*PeaceKeeper Cryptographic Security Policy:
 
         Asymmetric Key Generation : ECDSA with 256 bits
         Asymmetric Signature : ECDSA for P-256
-        Message Digest : SHA-256
+        SecurityGuard Digest : SHA-256
         Symmetric Key Generation : AES
         Symmetric Key Length : 256
         Symmetric Encryption : AES in CTR (Counter) mode, with appended HMAC.
         Certificate Format : X.509v3
         Random ID Size : 256 bits from /dev/urandom.
         Password Encryption : bcrypt
+*/
+
+
+/* private static final int oneDay = 24 * 60 * 60 * 1000, oneYear = 365 * 24 * 60 * 60 * 1000;
+    final Date now = new Date(System.currentTimeMillis();
+
+ http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation#X.509PublicKeyCertificateandCertificationRequestGeneration-Version1CertificateCreation
 */

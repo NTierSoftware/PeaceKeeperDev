@@ -15,6 +15,7 @@ import org.slf4j.*;
 
 import android.content.*;
 import android.content.res.AssetManager;
+import android.content.res.Resources;
 import android.net.*;
 import android.net.wifi.WifiManager;
 import android.os.*;
@@ -44,13 +45,9 @@ private AssetManager mAssetManager;
 //private static SharedPreferences mSharedPreferences;
 //http://possiblemobile.com/2013/06/context/
 
+private static Context mContext;
 public static pkUtility getInstance(Context context){
-	 if (mUtility == null) {
-         //Always pass in the Application Context
-//		 mUtility = new pkUtility(context.getApplicationContext());
-		 mUtility = new pkUtility(context);
-		 
-     }
+	 if (mUtility == null) { mUtility = new pkUtility(context); }
 
      return mUtility;
 }
@@ -65,7 +62,8 @@ public static pkUtility getInstance(){
 //private constructor prevents instantiation.  We only need/want one of these.
 private pkUtility(Context context) {
 	super( context );
-	mConnMgr = (ConnectivityManager)getSystemService( Context.CONNECTIVITY_SERVICE );
+    mContext = context;
+    mConnMgr = (ConnectivityManager)getSystemService( Context.CONNECTIVITY_SERVICE );
 	mAssetManager = getAssets();
 	//mSharedPreferences = context.getSharedPreferences(SHARED_PREFS_FNAME, MODE_PRIVATE);
 }
@@ -295,6 +293,7 @@ public String getServerIPaddr(){
     		.getProperty("ServerIPaddrDefault"));
 }
 
+public Resources getResources(){ return mContext.getResources();}
 
 /*
 public boolean registerDevice(boolean FORCE){

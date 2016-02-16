@@ -12,7 +12,7 @@ import android.view.MenuItem;
 
 import com.onesignal.OneSignal;
 
-import org.peacekeeper.crypto.Message;
+import org.peacekeeper.crypto.SecurityGuard;
 import org.slf4j.*;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.util.ContextInitializer;
@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        Message msg = new Message("test and verify this text");
+        SecurityGuard msg = new SecurityGuard("test and verify this text");
         mLog.trace("msg.verify(): " + Boolean.toString(msg.verify()));
     }
 
@@ -70,9 +70,7 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
+        if (id == R.id.action_settings) { return true; }
 
         return super.onOptionsItemSelected(item);
     }
