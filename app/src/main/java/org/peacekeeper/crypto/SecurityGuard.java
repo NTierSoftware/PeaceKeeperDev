@@ -23,6 +23,7 @@ import org.spongycastle.asn1.x500.*;
 import org.spongycastle.asn1.x500.style.BCStrictStyle;
 import org.spongycastle.jce.ECNamedCurveTable;
 import org.spongycastle.jce.spec.ECParameterSpec;
+import org.spongycastle.openssl.PEMWriter;
 import org.spongycastle.operator.ContentSigner;
 import org.spongycastle.operator.OperatorCreationException;
 import org.spongycastle.operator.jcajce.JcaContentSignerBuilder;
@@ -30,7 +31,9 @@ import org.spongycastle.pkcs.PKCS10CertificationRequest;
 import org.spongycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.spongycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 
+import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.security.*;
@@ -40,6 +43,8 @@ import ch.qos.logback.classic.util.ContextInitializer;
 
 //import org.bouncycastle.openssl.PEMWriter;
 import org.spongycastle.openssl.jcajce.JcaPEMWriter;
+import org.spongycastle.util.io.pem.PemObject;
+
 // http://stackoverflow.com/questions/18244630/elliptic-curve-with-digital-signature-algorithm-ecdsa-implementation-on-bouncy
 public class SecurityGuard {
 //begin static
@@ -164,15 +169,24 @@ return p10Builder.build(signer);
 }//generateCSR
 
 
-public void PEMprint() {
-//import org.bouncycastle.openssl.PEMWriter;
-
-
-    OutputStreamWriter output = new OutputStreamWriter(System.out);
-    JcaPEMWriter pem = new JcaPEMWriter(output);
-    pem.writeObject(this);
-    pem.close();
-}//PEMprint
+//Get the CSR as a PEM formatted String
+public String toPEM(PKCS10CertificationRequest CSR){
+    StringWriter str = new StringWriter();
+    JcaPEMWriter pemWriter = new JcaPEMWriter(str);
+    String retVal = "";
+    try {
+        PemObject pemObject = new PemObject("CERTIFICATE REQUEST", CSR.getEncoded());
+        pemWriter.writeObject(pemObject);
+        pemWriter.close();
+        str.close();
+        retVal = str.toString();
+    } catch (IOException X) {
+        retVal = "";
+        pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("toPEM err", X);
+        mLog.error(CRYPTOERR.toString());
+        throw CRYPTOERR; }
+    finally { return retVal; }
+}//toPEM
 
 }//SecurityGuard
 

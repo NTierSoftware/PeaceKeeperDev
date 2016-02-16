@@ -53,7 +53,9 @@ public class MainActivity extends AppCompatActivity {
 
         SecurityGuard msg = new SecurityGuard("test and verify this text");
         mLog.trace("msg.verify(): " + Boolean.toString(msg.verify()));
-    }
+        mLog.trace("generateCSR:\n" + msg.toPEM(msg.generateCSR()) + "\n\n");
+
+    }//onCreate
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
