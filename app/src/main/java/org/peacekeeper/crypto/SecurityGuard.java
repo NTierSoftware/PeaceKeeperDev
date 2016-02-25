@@ -1,6 +1,17 @@
-package org.peacekeeper.crypto;
-//TODO use PEMWriter class to print
+//http://developer.android.com/training/articles/keystore.html
+//http://developer.android.com/reference/android/security/keystore/KeyProtection.html
+//http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation
+//http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation#X.509PublicKeyCertificateandCertificationRequestGeneration-Version3CertificateCreation
+//http://stackoverflow.com/questions/29852290/self-signed-x509-certificate-with-bouncy-castle-in-java
 
+
+
+/*
+Registration:
+
+*/
+
+package org.peacekeeper.crypto;
 /*PeaceKeeper Cryptographic Security Policy:
 
         Asymmetric Key Generation : ECDSA with 256 bits
@@ -14,47 +25,41 @@ package org.peacekeeper.crypto;
         Password Encryption : bcrypt
 */
 
-import org.peacekeeper.exception.*;
-//import org.peacekeeper.exception.pkException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import android.security.keystore.*;
 
+import org.peacekeeper.exception.*;
+import org.slf4j.*;
 import org.spongycastle.asn1.x500.*;
 import org.spongycastle.asn1.x500.style.BCStrictStyle;
+import org.spongycastle.cert.*;
+import org.spongycastle.cert.jcajce.*;
 import org.spongycastle.jce.ECNamedCurveTable;
+import org.spongycastle.jce.provider.BouncyCastleProvider;
 import org.spongycastle.jce.spec.ECParameterSpec;
-import org.spongycastle.openssl.PEMWriter;
-import org.spongycastle.operator.ContentSigner;
-import org.spongycastle.operator.OperatorCreationException;
+import org.spongycastle.openssl.jcajce.JcaPEMWriter;
+import org.spongycastle.operator.*;
 import org.spongycastle.operator.jcajce.JcaContentSignerBuilder;
-import org.spongycastle.pkcs.PKCS10CertificationRequest;
-import org.spongycastle.pkcs.PKCS10CertificationRequestBuilder;
+import org.spongycastle.pkcs.*;
 import org.spongycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
+import org.spongycastle.util.io.pem.PemObject;
 
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.math.BigInteger;
 import java.security.*;
-
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.util.ContextInitializer;
-
-//import org.bouncycastle.openssl.PEMWriter;
-import org.spongycastle.openssl.jcajce.JcaPEMWriter;
-import org.spongycastle.util.io.pem.PemObject;
+import java.security.KeyStore.PrivateKeyEntry;
+import java.security.cert.*;
+import java.util.*;
 
 // http://stackoverflow.com/questions/18244630/elliptic-curve-with-digital-signature-algorithm-ecdsa-implementation-on-bouncy
 public class SecurityGuard {
 //begin static
-static private final LoggerContext		mLoggerContext	= (LoggerContext)LoggerFactory.getILoggerFactory();
-static private final ContextInitializer	mContextInitializer	= new ContextInitializer( mLoggerContext );
 static private final Logger				mLog = LoggerFactory.getLogger( SecurityGuard.class );
-static private KeyPair keyPair = null;
-static private final String SpongeyCastle = "SC",
-                            SHA256withECDSA = "SHA256withECDSA",
-                            charsetname = "UTF-8";
+static private KeyPair KEYPAIR = null;
+static private final String SHA256withECDSA = "SHA256withECDSA"
+							, AndroidKeyStore = "AndroidKeyStore"
+							, NamedCurve = "P-256"
+                            , charset = "UTF-8"
+;
 //end static
 
 private String message = null;
@@ -62,34 +67,149 @@ private byte[] hash = null, signature = null;
 
 public SecurityGuard(final String message){ this.message = message; }
 
-public KeyPair GenerateKeys()
-{   if (keyPair == null) {
-        try {
-            ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("P-256");
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("ECDSA", SpongeyCastle );
-            keyPairGenerator.initialize(ecSpec, new SecureRandom());
-            keyPair = keyPairGenerator.generateKeyPair(); }
-        catch (NoSuchAlgorithmException| NoSuchProviderException| InvalidAlgorithmParameterException X)
-        {   keyPair = null;
-            pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("GenerateKeys err", X);;
-            mLog.error(CRYPTOERR.toString());
-            throw CRYPTOERR; }
-    }//if
+public KeyPair getKeyPair(final String alias){
 
-return keyPair;
-}//GenerateKeys
+	if (this.KEYPAIR != null){ return this.KEYPAIR; }
+
+	try {
+		KeyStore keyStore = KeyStore.getInstance(AndroidKeyStore);
+		keyStore.load(null);
+		if ( keyStore.containsAlias(alias)) {
+			PrivateKey PrivateKey = (PrivateKey) keyStore.getKey(alias, null); //no password
+			PublicKey publicKey = keyStore.getCertificate(alias).getPublicKey();
+			this.KEYPAIR = new KeyPair(publicKey, PrivateKey );
+		}//if
+		else this.KEYPAIR = genKeyPair( alias );
+	}//try
+	catch (KeyStoreException| IOException| NoSuchAlgorithmException| CertificateException| UnrecoverableEntryException X) {
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto getKeyPair err", X);
+		mLog.error(CRYPTOERR.toString());
+		this.KEYPAIR = null;
+		throw CRYPTOERR;
+	}
+	finally { return this.KEYPAIR; }
+}//getKeyPair
 
 
+// http://www.programcreek.com/java-api-examples/index.php?class=org.spongycastle.cert.X509v3CertificateBuilder&method=addExtension
+private static X509Certificate genRootCertificate(KeyPair kp, String CN)
+{
+
+	X509Certificate certificate = null;
+try {
+	X500Name x500Name = new X500NameBuilder(BCStrictStyle.INSTANCE)
+			                          .addRDN(BCStrictStyle.CN, CN)
+						.build();
+
+	// We want this root certificate to be valid for one year
+	final Calendar start = Calendar.getInstance();
+	final Date now = start.getTime();
+	start.add(Calendar.YEAR, 1);
+	final Date expire = start.getTime();
+
+
+	X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder(
+                                          x500Name, //builder.build(),
+                                          new BigInteger(80, new SecureRandom()), //new Random()),
+                                          now, //new Date(System.currentTimeMillis() - 50000),
+                                          expire, //calendar.getTime(),
+                                          x500Name, //builder.build(),
+                                          kp.getPublic());
+
+	JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder(SHA256withECDSA);
+	ContentSigner signer = csBuilder.build(kp.getPrivate());
+	X509CertificateHolder certHolder = certGen.build(signer);
+
+	certificate = new JcaX509CertificateConverter().getCertificate(certHolder);
+}//try
+catch( OperatorCreationException| CertificateException X ) {
+	pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto selfSignedCert gen err", X);
+	mLog.error(CRYPTOERR.toString());
+	certificate = null;
+	throw CRYPTOERR;
+}
+finally { return certificate; }
+}//genRootCertificate()
+
+//http://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.html
+private KeyPair genKeyPair(final String alias) {
+	final int  keyPurpose = KeyProperties.PURPOSE_SIGN
+					             |KeyProperties.PURPOSE_DECRYPT
+					             |KeyProperties.PURPOSE_ENCRYPT
+					             |KeyProperties.PURPOSE_VERIFY
+			   //, FiveMin = 5 * 60
+					;
+
+	final Calendar start = Calendar.getInstance();
+	final Date now = start.getTime();
+	start.add(Calendar.YEAR, 1);
+	final Date expire = start.getTime();
+
+	ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(NamedCurve);
+	KeyPair keyPair;
+	try {
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance("ECDSA", BouncyCastleProvider.PROVIDER_NAME);
+		kpg.initialize(
+			              new KeyGenParameterSpec.Builder( alias, keyPurpose )
+					              .setAlgorithmParameterSpec(ecSpec)
+					              .setDigests(KeyProperties.DIGEST_SHA256)
+					              .setUserAuthenticationRequired(true)
+// Only permit the private key to be used if the user authenticated within the last five minutes.
+//	              .setUserAuthenticationValidityDurationSeconds(FiveMin)
+					              .setKeyValidityStart(now)
+					              .setKeyValidityEnd(expire)
+					              .build()
+		);
+
+	 keyPair = kpg.generateKeyPair();
+
+	} catch (NoSuchAlgorithmException| InvalidAlgorithmParameterException| NoSuchProviderException X) {
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto KeyPair gen err", X);
+		mLog.error(CRYPTOERR.toString());
+		//keyPair = null;
+		throw CRYPTOERR;
+	}
+
+// Now we import the Spongeycastle provided keypair into the AndroidKeyStore provided KeyStore.
+// see http://developer.android.com/reference/android/security/keystore/KeyProtection.html
+
+	KeyStore keyStore;
+	try {
+		keyStore = KeyStore.getInstance("AndroidKeyStore");
+		keyStore.load(null);
+
+		//selfSignedCert is only for initial persistence of the KeyPair. We replace it with
+		// true good CA Cert later.
+		X509Certificate[] selfSignedCert = new X509Certificate[1];
+		selfSignedCert[0] = genRootCertificate(keyPair, alias);
+		KeyStore.Entry privateKey = new PrivateKeyEntry(keyPair.getPrivate(), selfSignedCert);
+
+		KeyStore.ProtectionParameter param = new KeyProtection.Builder( KeyProperties.PURPOSE_SIGN)
+				                                     .setDigests(KeyProperties.DIGEST_SHA256)
+				                                     .build();
+
+		keyStore.setEntry( alias, privateKey, param );
+
+	} catch (KeyStoreException| IOException| NoSuchAlgorithmException| CertificateException X) {
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto KeyStore gen err", X);
+		mLog.error(CRYPTOERR.toString());
+		keyPair = null;
+		throw CRYPTOERR;
+	}
+	finally { return keyPair; }
+
+}//genKeyPair
+
+private static final String testAlias = "JD test Alias";
 public byte[] getSignature(){
-    if (signature == null)
+    if (this.signature == null)
     try {
-        KeyPair pair = this.GenerateKeys();
-        Signature ecdsaSign = Signature.getInstance(SHA256withECDSA, SpongeyCastle);
-        ecdsaSign.initSign(pair.getPrivate());
-        ecdsaSign.update(this.message.getBytes(charsetname));
+        KeyPair keyPair = this.getKeyPair(testAlias);
+	    Signature ecdsaSign = Signature.getInstance(SHA256withECDSA);
+        ecdsaSign.initSign(keyPair.getPrivate());
+        ecdsaSign.update(this.message.getBytes(charset));
         signature = ecdsaSign.sign();
-    } catch (NoSuchAlgorithmException| NoSuchProviderException|
-             InvalidKeyException| UnsupportedEncodingException| SignatureException X)
+    } catch (NoSuchAlgorithmException| InvalidKeyException| UnsupportedEncodingException| SignatureException X)
     {
         pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto Signature err", X);
         mLog.error(CRYPTOERR.toString());
@@ -104,12 +224,11 @@ public boolean verify(){
     Signature ecdsaVerify = null;
     boolean retVal = false;
     try {
-        ecdsaVerify = Signature.getInstance(SHA256withECDSA, SpongeyCastle);
-        ecdsaVerify.initVerify(GenerateKeys().getPublic());
-        ecdsaVerify.update(this.message.getBytes(charsetname));
+        ecdsaVerify = Signature.getInstance(SHA256withECDSA, BouncyCastleProvider.PROVIDER_NAME);
+        ecdsaVerify.initVerify( getKeyPair(testAlias).getPublic() );
+        ecdsaVerify.update(this.message.getBytes(charset));
         retVal = ecdsaVerify.verify( getSignature() );
-    } catch (NoSuchAlgorithmException| NoSuchProviderException|
-             SignatureException| UnsupportedEncodingException X)
+    } catch (NoSuchAlgorithmException| NoSuchProviderException| SignatureException| UnsupportedEncodingException X)
     {   retVal = false;
         pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("crypto verify err", X);
         mLog.error(CRYPTOERR.toString()); }
@@ -120,7 +239,7 @@ public boolean verify(){
 // http://stackoverflow.com/questions/9661008/compute-sha256-hash-in-android-java-and-c-sharp?lq=1
 public void setHash() throws NoSuchAlgorithmException, UnsupportedEncodingException
 {   MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    this.hash = digest.digest(message.getBytes(charsetname));
+    this.hash = digest.digest(message.getBytes(charset));
 }//setHash
 
 
@@ -141,11 +260,11 @@ public String toString() {
 return retVal.toString();
 }
 
+//https://msdn.microsoft.com/en-us/library/windows/desktop/aa376502(v=vs.85).aspx
 // http://stackoverflow.com/questions/20532912/generating-the-csr-using-bouncycastle-api
 public PKCS10CertificationRequest generateCSR(){
-    KeyPair pair = this.GenerateKeys();
+    KeyPair pair = this.getKeyPair(testAlias);
 
-    //TODO fix X500 EmailAddress
     X500Name subject = new X500NameBuilder( new BCStrictStyle() )
             .addRDN(BCStrictStyle.EmailAddress, "JD.John.Donaldson@gmail.com")
             .build();
@@ -156,7 +275,7 @@ public PKCS10CertificationRequest generateCSR(){
             .setLeaveOffEmptyAttributes(true);
 
     JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder(SHA256withECDSA);
-    ContentSigner signer = null;
+    ContentSigner signer;// = null;
 
     try { signer = csBuilder.build(pair.getPrivate()); }
     catch (OperatorCreationException X) {
@@ -188,24 +307,6 @@ public String toPEM(PKCS10CertificationRequest CSR){
     finally { return retVal; }
 }//toPEM
 
-}//SecurityGuard
-
-/*PeaceKeeper Cryptographic Security Policy:
-
-        Asymmetric Key Generation : ECDSA with 256 bits
-        Asymmetric Signature : ECDSA for P-256
-        SecurityGuard Digest : SHA-256
-        Symmetric Key Generation : AES
-        Symmetric Key Length : 256
-        Symmetric Encryption : AES in CTR (Counter) mode, with appended HMAC.
-        Certificate Format : X.509v3
-        Random ID Size : 256 bits from /dev/urandom.
-        Password Encryption : bcrypt
-*/
-
-
-/* private static final int oneDay = 24 * 60 * 60 * 1000, oneYear = 365 * 24 * 60 * 60 * 1000;
-    final Date now = new Date(System.currentTimeMillis();
-
- http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation#X.509PublicKeyCertificateandCertificationRequestGeneration-Version1CertificateCreation
-*/
+public unRegister(){
+}//unRegister()
+}//class SecurityGuard
