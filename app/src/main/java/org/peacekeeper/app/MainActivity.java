@@ -21,10 +21,12 @@ import org.json.JSONObject;
 
 import org.peacekeeper.util.pkUtility;
 
+import java.security.KeyStore;
+
 public class MainActivity extends AppCompatActivity {
 //begin static
-    static private final LoggerContext		mLoggerContext	= (LoggerContext)LoggerFactory.getILoggerFactory();
-    static private final ContextInitializer	mContextInitializer		= new ContextInitializer( mLoggerContext );
+///    static private final LoggerContext		mLoggerContext	= (LoggerContext)LoggerFactory.getILoggerFactory();
+//    static private final ContextInitializer	mContextInitializer		= new ContextInitializer( mLoggerContext );
     static private final Logger				mLog	= LoggerFactory.getLogger( MainActivity.class );
 //end static
 
@@ -44,17 +46,17 @@ public class MainActivity extends AppCompatActivity {
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
+	        @Override
+	        public void onClick(View view) {
+		        Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+				        .setAction("Action", null).show();
+	        }
         });
 
-        SecurityGuard msg = new SecurityGuard("test and verify this text");
-        mLog.trace("msg.verify(): " + Boolean.toString(msg.verify()));
-        mLog.trace("generateCSR:\n" + msg.toPEM(msg.generateCSR()) + "\n\n");
-
+	    SecurityGuard msg = new SecurityGuard("test and verify this text");
+        mLog.debug("msg.verify(): " + Boolean.toString(msg.verify()));
+        mLog.debug("generateCSR:\n" + msg.toPEM(msg.generateCSR()) + "\n\n");
+		finish();
     }//onCreate
 
     @Override

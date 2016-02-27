@@ -18,7 +18,7 @@ static private final Logger				mLog	= LoggerFactory.getLogger( pkApplication.cla
 public void onCreate() {
     super.onCreate();
 
-    mLog.trace("pkApplication.OnCreate:\t name: "
+    mLog.debug("pkApplication.OnCreate:\t name: "
                     + SpongyCastleProvider.getName()
                     + "\t info: " + SpongyCastleProvider.getInfo()
     );

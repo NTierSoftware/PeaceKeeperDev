@@ -9,6 +9,9 @@ import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+//http://docs.oracle.com/javase/tutorial/essential/exceptions/runtime.html
+//" If a client cannot do anything to recover from the exception, make it an unchecked exception."
+//pkException is an application wide unchecked exception
 public class pkException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
