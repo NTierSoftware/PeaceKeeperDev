@@ -49,20 +49,29 @@ import java.util.*;
 // http://stackoverflow.com/questions/18244630/elliptic-curve-with-digital-signature-algorithm-ecdsa-implementation-on-bouncy
 public class SecurityGuard {
 //begin static
-static private final Logger				mLog = LoggerFactory.getLogger( SecurityGuard.class );
+static private final Logger mLog = LoggerFactory.getLogger(SecurityGuard.class);
 static private KeyPair KEYPAIR = null;
-static private final String SHA256withECDSA = "SHA256withECDSA"
-							, AndroidKeyStore = "AndroidKeyStore"
-							, NamedCurve = "P-256"
-                            , charset = "UTF-8"
-;
+static private final String SHA256withECDSA = "SHA256withECDSA", AndroidKeyStore = "AndroidKeyStore", NamedCurve = "P-256", charset = "UTF-8";
 //end static
 
 private String message = null;
 private byte[] hash = null, signature = null;
 private KeyStore keyStore = null;
 
-public SecurityGuard(final String message){ this.message = message; }
+public SecurityGuard(final String message) {
+	this.message = message;
+}
+
+private void keyStoreContents() {
+	try {
+		Enumeration<String> aliases = keyStore.aliases();
+		mLog.debug("keyStore contents:" + aliases.toString());
+		while (aliases.hasMoreElements()) {
+			mLog.debug(aliases.nextElement().toString());
+		}
+	}
+	catch( Exception X ){X.printStackTrace();}
+}//keyStoreContents
 
 private KeyPair getKeyPair(final String alias){
 
@@ -72,12 +81,7 @@ private KeyPair getKeyPair(final String alias){
 		try {
 			keyStore = KeyStore.getInstance(AndroidKeyStore);
 			keyStore.load(null);
-			try {
-				Enumeration<String> aliases = keyStore.aliases();
-				while (aliases.hasMoreElements()) { mLog.debug(aliases.nextElement().toString()); }
-			}
-			catch(Exception e) {}
-
+			keyStoreContents();
 		}//try
 		catch (KeyStoreException| IOException| NoSuchAlgorithmException| CertificateException X) {
 			pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto keyStore load err", X);
@@ -105,20 +109,6 @@ private KeyPair getKeyPair(final String alias){
 	return KEYPAIR;
 }//getKeyPair
 
-private void refreshKeys() {
-	List<String> keyAliases;
-
-	keyAliases = new ArrayList<>();
-	try {
-		Enumeration<String> aliases = keyStore.aliases();
-		while (aliases.hasMoreElements()) {
-			keyAliases.add(aliases.nextElement());
-		}
-	}
-	catch(Exception e) {}
-
-	//if(listAdapter != null) listAdapter.notifyDataSetChanged();
-}
 
 
 // http://www.programcreek.com/java-api-examples/index.php?class=org.spongycastle.cert.X509v3CertificateBuilder&method=addExtension
@@ -237,9 +227,9 @@ private KeyPair genKeyPair(final String alias) {
 		throw CRYPTOERR;
 	}
 
-	mLog.error("KEYPAIR GENERATED!?!?!");
-	mLog.error("KEYPAIR GENERATED!?!?!");
-	mLog.error("KEYPAIR GENERATED!?!?!");
+//	mLog.error("KEYPAIR GENERATED!?!?!");
+	keyStoreContents();
+
 // Now we import the Spongeycastle provided keypair into the AndroidKeyStore provided KeyStore.
 // see http://developer.android.com/reference/android/security/keystore/KeyProtection.html
 
