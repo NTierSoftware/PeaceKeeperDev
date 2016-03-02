@@ -24,11 +24,9 @@ import android.security.keystore.*;
 import org.peacekeeper.exception.*;
 import org.slf4j.*;
 
-import org.spongycastle.asn1.ASN1Sequence;
 import org.spongycastle.asn1.sec.SECNamedCurves;
 import org.spongycastle.asn1.x500.*;
 import org.spongycastle.asn1.x500.style.*;
-import org.spongycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.spongycastle.cert.*;
 import org.spongycastle.cert.jcajce.*;
 import org.spongycastle.openssl.jcajce.JcaPEMWriter;
@@ -41,24 +39,41 @@ import org.spongycastle.util.io.pem.PemObject;
 import java.io.*;
 import java.math.BigInteger;
 import java.security.*;
+import java.security.Provider.Service;
 import java.security.cert.*;
 import java.security.spec.ECGenParameterSpec;
 import java.util.*;
 
 // http://stackoverflow.com/questions/18244630/elliptic-curve-with-digital-signature-algorithm-ecdsa-implementation-on-bouncy
-public class SecurityGuard {
+public final class SecurityGuard {
 //begin static
 static private final Logger mLog = LoggerFactory.getLogger(SecurityGuard.class);
 static private KeyPair KEYPAIR = null;
 static private KeyStore keyStore = null;
-static private final String ECDSA = "ECDSA", SHA256withECDSA = "SHA256withECDSA",
-		AndroidKeyStore = "AndroidKeyStore", NamedCurve = "P-256", charset = "UTF-8";
+static private final String ECDSA = "ECDSA", SHA256withECDSA = "SHA256withECDSA"
+		, AndroidKeyStore = "AndroidKeyStore", charset = "UTF-8"
+		, NamedCurve = "secp256r1"; //"P-256"
+
+static private final Provider PROVIDER = new org.spongycastle.jce.provider.BouncyCastleProvider();
 //end static
 
 private String message = null;
 private byte[] hash = null, signature = null;
 
+static void initSecurity(){ initSecurity(PROVIDER); }
+
+//Moves provider to first place
+static void initSecurity(Provider provider){
+	listProviders();
+	Security.removeProvider(provider.getName());
+
+	int insertProviderAt = Security.insertProviderAt(provider, 1);
+	mLog.debug("insertProviderAt:\t" + Integer.toString(insertProviderAt) ) ;
+	listProviders();
+}//initSecurity
+
 public SecurityGuard(final String message) {
+	initSecurity();
 	this.message = message;
 }
 
@@ -95,7 +110,6 @@ private KeyPair getKeyPair(final String alias){
 			PrivateKey PrivateKey = (PrivateKey) keyStore.getKey(alias, null); //no password
 			PublicKey publicKey = keyStore.getCertificate(alias).getPublicKey();
 			KEYPAIR = new KeyPair(publicKey, PrivateKey );
-			mLog.debug("keyStore containsAlias:\t" + alias);
 		}//if
 		else KEYPAIR = genKeyPair( alias );
 	}//try
@@ -186,7 +200,7 @@ private KeyPair genKeyPair(final String alias) {
 				              new KeyGenParameterSpec.Builder(
 						                                             alias,
 						                                             KeyProperties.PURPOSE_SIGN)
-						              .setAlgorithmParameterSpec(new ECGenParameterSpec("secp256r1"))
+						              .setAlgorithmParameterSpec(new ECGenParameterSpec(NamedCurve))
 						              .setDigests(KeyProperties.DIGEST_SHA256
 						              )
 // Only permit the private key to be used if the user authenticated
@@ -203,7 +217,7 @@ private KeyPair genKeyPair(final String alias) {
 	}
 	catch(Exception X){X.printStackTrace();}
 return keyPair;
-}
+}//genKeyPair
 
 
 private static final String testAlias = "JD test Alias";
@@ -212,6 +226,14 @@ public byte[] getSignature(){
     try {
         KeyPair keyPair = getKeyPair(testAlias);
 //	    Signature ecdsaSign = Signature.getInstance(SHA256withECDSA, BouncyCastleProvider.PROVIDER_NAME);
+		mLog.debug("\ngetSignature()\n");
+	    initSecurity(Security.getProvider("AndroidKeyStoreBCWorkaround"));
+	    mLog.debug("\ngetSignature()\n");
+	    //Provider AndroidKeyStoreBCWorkaround = Security.getProvider("AndroidKeyStoreBCWorkaround");
+	    //Security.removeProvider("AndroidKeyStoreBCWorkaround");
+	    //listProviders();
+	   // mLog.debug("\n\nSecurity.insertProviderAt: " +Security.insertProviderAt(AndroidKeyStoreBCWorkaround, 1));
+		//listProviders();
 	    Signature ecdsaSign = Signature.getInstance(SHA256withECDSA);
 
 	    byte[] test = keyPair.getPrivate().getEncoded();
@@ -231,11 +253,11 @@ public byte[] getSignature(){
         throw CRYPTOERR;
     }//catch
 
+	initSecurity();
 	return signature;
 }//getSignature
 
 public boolean verify(){
-
     boolean retVal;
     try {
 	    Signature ecdsaVerify = Signature.getInstance(SHA256withECDSA);
@@ -285,6 +307,10 @@ public PKCS10CertificationRequest generateCSR(){
             .addRDN(BCStrictStyle.EmailAddress, "JD.John.Donaldson@gmail.com")
             .build();
 
+	mLog.debug("\ngenerateCSR()\n");
+	initSecurity(Security.getProvider("AndroidKeyStoreBCWorkaround"));
+	mLog.debug("\ngenerateCSR()\n");
+
     PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
             subject
             , pair.getPublic() )
@@ -299,8 +325,9 @@ public PKCS10CertificationRequest generateCSR(){
         mLog.error(CRYPTOERR.toString());
         throw CRYPTOERR;
     }
-
-return p10Builder.build(signer);
+	PKCS10CertificationRequest CSR = p10Builder.build(signer);
+	initSecurity();
+return CSR;
 }//generateCSR
 
 
@@ -330,7 +357,7 @@ public String toPEM(PKCS10CertificationRequest CSR){
 return retVal;
 }//toPEM
 
-public boolean unRegister(){
+static public boolean unRegister(){
 	boolean retval = false;
 return retval;
 }//unRegister()
@@ -342,9 +369,9 @@ static public void listAlgorithms(String algFilter) {
 		String providerStr = String.format("%s/%s/%f\n", p.getName(),
 				                                  p.getInfo(), p.getVersion());
 		mLog.debug(providerStr);
-		java.util.Set<java.security.Provider.Service> services = p.getServices();
+		java.util.Set<Service> services = p.getServices();
 		java.util.List<String> algs = new java.util.ArrayList<String>();
-		for (java.security.Provider.Service s : services) {
+		for (Service s : services) {
 			boolean match = true;
 			if (algFilter != null) {
 				match = s.getAlgorithm().toLowerCase()
@@ -381,9 +408,27 @@ static public void listCurves() {
 private void keyStoreContents() {
 	try {
 		Enumeration<String> aliases = keyStore.aliases();
-		mLog.debug("keyStore contents:" + aliases.toString());
-		while (aliases.hasMoreElements()) { mLog.debug(aliases.nextElement().toString()); }
+		mLog.debug((aliases.hasMoreElements() ? "" : "Empty") + "keyStore contents" );
+		while (aliases.hasMoreElements() ) { mLog.debug(":\t" + aliases.nextElement().toString() ); }
 	}
 	catch( Exception X ){X.printStackTrace();}
 }//keyStoreContents
+
+static public void listProviders(){
+	Provider[] providers = Security.getProviders();
+	StringBuilder list = new StringBuilder().append("Num providers: " + providers.length );
+	int i = 0;
+	for (Provider p : providers){
+		list.append("\n\tProvider " + ++i + ": " + p.getName() + "\t info: " + p.getInfo());
+		Set<Provider.Service> services = p.getServices();
+		list.append("\tNum services: " + services.size());
+		for (Service s : services ){
+			//list.append("\n\t\tService: " + s.toString() + "\ttype: " + s.getType() + "\talgo: " + s.getAlgorithm());
+		}
+	}
+
+	mLog.debug(list.toString());
+}//listProviders
+
 }//class SecurityGuard
+
