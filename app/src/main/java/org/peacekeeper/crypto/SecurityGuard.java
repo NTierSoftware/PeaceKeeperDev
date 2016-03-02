@@ -176,70 +176,11 @@ return certificate;
 }//genRootCertificate()
 
 
-/*
-private X509Certificate genSelfSignedCert(KeyPair kp, String CN){
-	X509Certificate certificate;
-
-	try{
-		X500Name x500Name = new X500NameBuilder(BCStyle.INSTANCE)
-				                    .addRDN(BCStyle.CN, CN)
-				                    .build();
-
-		SecureRandom rand = new SecureRandom();
-		PrivateKey privKey = kp.getPrivate();
-		PublicKey pubKey = kp.getPublic();
-
-		SubjectPublicKeyInfo subPubKeyInfo = SubjectPublicKeyInfo.getInstance(ASN1Sequence.getInstance(pubKey.getEncoded()));
-
-		Date startDate = new Date(); // now
-
-		Calendar c = Calendar.getInstance();
-		c.setTime(startDate);
-		c.add(Calendar.YEAR, 1);
-		Date endDate = c.getTime();
-
-		X509v3CertificateBuilder v3CertGen = new X509v3CertificateBuilder(
-                                             x500Name,
-                                             BigInteger.valueOf(rand.nextLong()),
-                                             startDate, endDate,
-                                             x500Name,
-                                             subPubKeyInfo);
-
-
-		ContentSigner signer = new JcaContentSignerBuilder(SHA256withECDSA).build(privKey);
-
-		DefaultAlgorithmNameFinder daf = new DefaultAlgorithmNameFinder();
-		String algo = daf.getAlgorithmName(signer.getAlgorithmIdentifier());
-		mLog.debug("SelfSigned signer.getAlgorithmIdentifier(): \t" + algo);
-
-		X509CertificateHolder certHolder = v3CertGen.build(signer);
-		certificate = new JcaX509CertificateConverter().getCertificate(certHolder);
-
-		//x500PrivateCredential x = new x500PrivateCredential(certificate, privKey, "");
-	}//try
-	catch( OperatorCreationException| CertificateException X ) {
-		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto selfSignedCert gen err", X);
-		mLog.error(CRYPTOERR.toString());
-		//certificate = null;
-		throw CRYPTOERR;
-	}
-
-	mLog.debug("SelfSigned kp.getPrivate().getAlgorithm(): \t" + kp.getPrivate().getAlgorithm());
-	mLog.debug( "SelfSigned kp.getPublic().getAlgorithm(): \t" + kp.getPublic().getAlgorithm() );
-	mLog.debug( "SelfSigned certificate.getPublicKey().getAlgorithm():\t" + certificate.getPublicKey().getAlgorithm());
-
-return certificate;
-}//genSelfSignedCert
-*/
-
-
-
 //http://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.html
 private KeyPair genKeyPair(final String alias) {
 	KeyPair keyPair = null;
 	try {
-//		KeyPairGenerator kpg = KeyPairGenerator.getInstance( ECDSA, "AndroidKeyStore");
-		KeyPairGenerator kpg = KeyPairGenerator.getInstance( android.security.keystore.KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance( KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
 
 		kpg.initialize(
 				              new KeyGenParameterSpec.Builder(
