@@ -8,8 +8,8 @@ import java.security.Provider;
 
 public class pkApplication extends Application {
 //https://rtyley.github.io/spongycastle/
-static private final Provider SpongyCastleProvider = new org.spongycastle.jce.provider.BouncyCastleProvider();
-static { java.security.Security.insertProviderAt(SpongyCastleProvider, 1); }
+//static private final Provider SpongyCastleProvider = new org.spongycastle.jce.provider.BouncyCastleProvider();
+//static { java.security.Security.insertProviderAt(SpongyCastleProvider, 1); }
 
 static private final Logger				mLog	= LoggerFactory.getLogger( pkApplication.class );
 
@@ -18,10 +18,7 @@ static private final Logger				mLog	= LoggerFactory.getLogger( pkApplication.cla
 public void onCreate() {
     super.onCreate();
 
-    mLog.debug("pkApplication.OnCreate:\t name: "
-                    + SpongyCastleProvider.getName()
-                    + "\t info: " + SpongyCastleProvider.getInfo()
-    );
+    //mLog.debug("pkApplication.OnCreate:\t name: " + SpongyCastleProvider.getName() + "\t info: " + SpongyCastleProvider.getInfo() );
 }
 
 

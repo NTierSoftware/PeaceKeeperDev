@@ -53,7 +53,9 @@ public class MainActivity extends AppCompatActivity {
 	        }
         });
 
+	    //SecurityGuard.listAlgorithms(""); SecurityGuard.listCurves();
 	    SecurityGuard msg = new SecurityGuard("test and verify this text");
+
         mLog.debug("msg.verify(): " + Boolean.toString(msg.verify()));
         mLog.debug("generateCSR:\n" + msg.toPEM(msg.generateCSR()) + "\n\n");
 		finish();
@@ -97,7 +99,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }//pkNotificationOpenedHandler
 
-
+@Override protected void onDestroy() {
+	mLog.debug("onDestroy():\t");
+	super.onDestroy();
+}
 }//MainActivity
 
 
