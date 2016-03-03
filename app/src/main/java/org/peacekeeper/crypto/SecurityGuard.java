@@ -1,10 +1,3 @@
-//http://developer.android.com/training/articles/keystore.html
-//http://developer.android.com/reference/android/security/keystore/KeyProtection.html
-//http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation
-//http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation#X.509PublicKeyCertificateandCertificationRequestGeneration-Version3CertificateCreation
-//http://stackoverflow.com/questions/29852290/self-signed-x509-certificate-with-bouncy-castle-in-java
-
-
 package org.peacekeeper.crypto;
 /*PeaceKeeper Cryptographic Security Policy:
 
@@ -17,13 +10,21 @@ package org.peacekeeper.crypto;
         Certificate Format : X.509v3
         Random ID Size : 256 bits from /dev/urandom.
         Password Encryption : bcrypt
+
+//http://developer.android.com/training/articles/keystore.html
+//http://developer.android.com/reference/android/security/keystore/KeyProtection.html
+//http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation
+//http://www.bouncycastle.org/wiki/display/JA1/X.509+Public+Key+Certificate+and+Certification+Request+Generation#X.509PublicKeyCertificateandCertificationRequestGeneration-Version3CertificateCreation
+//http://stackoverflow.com/questions/29852290/self-signed-x509-certificate-with-bouncy-castle-in-java
+
 */
 
-//import android.security.keystore.*;
 
 import org.peacekeeper.exception.*;
 import org.peacekeeper.util.pkUtility;
+
 import org.slf4j.*;
+
 import org.spongycastle.asn1.sec.SECNamedCurves;
 import org.spongycastle.asn1.x500.*;
 import org.spongycastle.asn1.x500.style.*;
@@ -187,7 +188,6 @@ return certificate;
 }//genRootCertificate()
 
 public static void genKeyStore() {
-	//KeyStore store;
 	try {
 		KEYSTORE = KeyStore.getInstance(keyStoreType, providerName);
 		KEYSTORE.load(null, null);
@@ -207,9 +207,7 @@ public static void genKeyStore() {
 		mLog.error(CRYPTOERR.toString());
 		throw CRYPTOERR;
 	}
-
-//return store;
-}
+}//genKeyStore
 
 private static void genKeyPair(){
 	KeyPairGenerator kpg;
@@ -248,8 +246,7 @@ private static void genKeyPair(){
 
 	KEYPAIR = kpg.generateKeyPair();
 	storeKey();
-	//return
-}
+}//genKeyPair
 
 
 //https://github.com/boeboe/be.boeboe.spongycastle/commit/5942e4794c6f950a95409f2612fad7de7cc49b33
@@ -268,7 +265,6 @@ private static void storeKey(){
 		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("storeKey err", X);;
 		mLog.error(CRYPTOERR.toString());
 		throw CRYPTOERR; }
-
 }//storeKey
 
 
@@ -294,19 +290,19 @@ return signature;
 }//getSignature
 
 public boolean verify(){
-    boolean retVal;
+    boolean verify;
     try {
 	    Signature ecdsaVerify = Signature.getInstance(SHA256withECDSA);
         ecdsaVerify.initVerify(getKeyPair().getPublic());
 	    ecdsaVerify.update(this.message.getBytes(charset));
-        retVal = ecdsaVerify.verify( getSignature() );
+        verify = ecdsaVerify.verify( getSignature() );
 
     } catch (NoSuchAlgorithmException| InvalidKeyException| SignatureException| UnsupportedEncodingException X)
-    {   retVal = false;
+    {   verify = false;
         pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("crypto verify err", X);
         mLog.error(CRYPTOERR.toString()); }
 
-return retVal;
+return verify;
 }//verify
 
 // http://stackoverflow.com/questions/9661008/compute-sha256-hash-in-android-java-and-c-sharp?lq=1
@@ -429,16 +425,14 @@ static public void listAlgorithms(String algFilter) {
 		}
 		mLog.debug("");
 	}
-}
+}//listAlgorithms
 
 
 static public void listCurves() {
 	mLog.debug("Supported named curves:");
 	java.util.Enumeration<?> names = SECNamedCurves.getNames();
-	while (names.hasMoreElements()) {
-		mLog.debug( "\t" + (String) names.nextElement());
-	}
-}
+	while (names.hasMoreElements()) { mLog.debug( "\t" + names.nextElement()); }
+}//listCurves
 
 
 private static void keyStoreContents() {
