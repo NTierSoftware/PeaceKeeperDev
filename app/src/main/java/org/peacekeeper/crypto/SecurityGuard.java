@@ -219,7 +219,6 @@ private static void genKeyPair(){
 		mLog.error(CRYPTOERR.toString());
 		throw CRYPTOERR;
 	}
-
 	try {
 		ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(NamedCurve);
 		kpg.initialize(ecSpec, new SecureRandom());
@@ -449,11 +448,12 @@ static public void listProviders(){
 	StringBuilder list = new StringBuilder().append("Num providers: " + providers.length );
 	int i = 0;
 	for (Provider p : providers){
-		list.append("\n\tProvider " + ++i + ": " + p.getName() + "\t info: " + p.getInfo());
+		list.append("\n\tProvider" + ++i + ": " + p.getName() + "\t info: " + p.getInfo());
 		Set<Provider.Service> services = p.getServices();
-		list.append("\tNum services: " + services.size());
+		list.append("\t\tNum services: " + services.size());
+		int k = 0;
 		for (Service s : services ){
-			//list.append("\n\t\tService: " + s.toString() + "\ttype: " + s.getType() + "\talgo: " + s.getAlgorithm());
+			list.append("\n\t\t\tService" + ++k + ": " + "\ttype: " + s.getType() + "\talgo: " + s.getAlgorithm());
 		}
 	}
 
