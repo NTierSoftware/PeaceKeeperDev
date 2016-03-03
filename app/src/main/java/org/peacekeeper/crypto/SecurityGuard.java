@@ -19,16 +19,18 @@ package org.peacekeeper.crypto;
         Password Encryption : bcrypt
 */
 
-import android.security.keystore.*;
+//import android.security.keystore.*;
 
 import org.peacekeeper.exception.*;
+import org.peacekeeper.util.pkUtility;
 import org.slf4j.*;
-
 import org.spongycastle.asn1.sec.SECNamedCurves;
 import org.spongycastle.asn1.x500.*;
 import org.spongycastle.asn1.x500.style.*;
 import org.spongycastle.cert.*;
 import org.spongycastle.cert.jcajce.*;
+import org.spongycastle.jce.ECNamedCurveTable;
+import org.spongycastle.jce.spec.ECParameterSpec;
 import org.spongycastle.openssl.jcajce.JcaPEMWriter;
 import org.spongycastle.operator.*;
 import org.spongycastle.operator.jcajce.JcaContentSignerBuilder;
@@ -41,20 +43,31 @@ import java.math.BigInteger;
 import java.security.*;
 import java.security.Provider.Service;
 import java.security.cert.*;
-import java.security.spec.ECGenParameterSpec;
 import java.util.*;
 
 // http://stackoverflow.com/questions/18244630/elliptic-curve-with-digital-signature-algorithm-ecdsa-implementation-on-bouncy
 public final class SecurityGuard {
 //begin static
 static private final Logger mLog = LoggerFactory.getLogger(SecurityGuard.class);
-static private KeyPair KEYPAIR = null;
-static private KeyStore keyStore = null;
-static private final String ECDSA = "ECDSA", SHA256withECDSA = "SHA256withECDSA"
-		, AndroidKeyStore = "AndroidKeyStore", charset = "UTF-8"
-		, NamedCurve = "secp256r1"; //"P-256"
-
 static private final Provider PROVIDER = new org.spongycastle.jce.provider.BouncyCastleProvider();
+
+static private KeyPair KEYPAIR = null;
+static private KeyStore KEYSTORE = null;
+static private final String ECDSA = "ECDSA", SHA256withECDSA = "SHA256withECDSA"
+		//, AndroidKeyStore = "AndroidKeyStore"
+		, charset = "UTF-8"
+		, NamedCurve = "secp256r1"
+	    , providerName = PROVIDER.getName() //"P-256"
+		, Alias = ".pkKey"
+		, pubKeyAlias = "Pub" + Alias
+		, priKeyAlias = "Pri" + Alias
+		, certKeyAlias = "Cert" + Alias
+		, keyStoreType = "PKCS12"
+		, keyStoreFilename = "keystore" + Alias + "." + keyStoreType;
+		;
+
+static private final char[] keyStorePW = "PeaceKeeperKeyStorePW".toCharArray();
+
 //end static
 
 private String message = null;
@@ -68,7 +81,7 @@ static void initSecurity(Provider provider){
 	Security.removeProvider(provider.getName());
 
 	int insertProviderAt = Security.insertProviderAt(provider, 1);
-	mLog.debug("insertProviderAt:\t" + Integer.toString(insertProviderAt) ) ;
+	mLog.debug("insertProviderAt:\t" + Integer.toString(insertProviderAt)) ;
 	listProviders();
 }//initSecurity
 
@@ -77,41 +90,26 @@ public SecurityGuard(final String message) {
 	this.message = message;
 }
 
-private KeyPair getKeyPair(final String alias){
+
+private KeyPair getKeyPair(){
 
 	mLog.debug("KEYPAIR " + (KEYPAIR == null ? "" : "NOT ") + "null");
 
 	if (KEYPAIR != null){return KEYPAIR; }
+	mLog.debug("KEYSTORE " + (KEYSTORE == null ? "" : "NOT ") + "null");
 
+	if (KEYSTORE == null) { genKeyStore();}
 
-	mLog.debug("keyStore " + (keyStore == null ? "" : "NOT ") + "null");
-
-	if (keyStore == null){
-		mLog.debug("keyStore is null");
-		try {
-			keyStore = KeyStore.getInstance(AndroidKeyStore);
-			keyStore.load(null);
-			mLog.debug("keyStore init'd");
-			keyStoreContents();
-		}//try
-		catch (KeyStoreException| IOException| NoSuchAlgorithmException| CertificateException X) {
-			pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto keyStore load err", X);
-			mLog.error(CRYPTOERR.toString());
-			KEYPAIR = null;
-			throw CRYPTOERR;
-		}
-	}
-
-	try{mLog.debug("keyStore does " + (keyStore.containsAlias(alias) ? "" : "NOT ") + "contain: "+ alias);}
+	try{mLog.debug("KEYSTORE does " + (KEYSTORE.containsAlias(priKeyAlias) ? "" : "NOT ") + "contain: "+ priKeyAlias);}
 	catch (Exception X){;}
 
 	try {
-		if ( keyStore.containsAlias(alias)) {
-			PrivateKey PrivateKey = (PrivateKey) keyStore.getKey(alias, null); //no password
-			PublicKey publicKey = keyStore.getCertificate(alias).getPublicKey();
-			KEYPAIR = new KeyPair(publicKey, PrivateKey );
+		if ( KEYSTORE.containsAlias(priKeyAlias)) {
+			PrivateKey privateKey = (PrivateKey) KEYSTORE.getKey(priKeyAlias, keyStorePW);
+			PublicKey publicKey = (PublicKey) KEYSTORE.getKey(pubKeyAlias, keyStorePW);
+			//KEYPAIR = new KeyPair(publicKey, privateKey );
 		}//if
-		else KEYPAIR = genKeyPair( alias );
+		else genKeyPair();
 	}//try
 	catch (KeyStoreException| NoSuchAlgorithmException| UnrecoverableEntryException X) {
 		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto getKeyPair err", X);
@@ -122,7 +120,6 @@ private KeyPair getKeyPair(final String alias){
 
 	return KEYPAIR;
 }//getKeyPair
-
 
 
 // http://www.programcreek.com/java-api-examples/index.php?class=org.spongycastle.cert.X509v3CertificateBuilder&method=addExtension
@@ -184,63 +181,103 @@ private static X509Certificate genRootCertificate( KeyPair kp, String CN){
 
 
 	mLog.debug( "genroot kp.getPublic().getAlgorithm(): \t" + kp.getPublic().getAlgorithm() );
-		mLog.debug("certificate.getPublicKey().getAlgorithm():\t" + certificate.getPublicKey().getAlgorithm());
+	mLog.debug("certificate.getPublicKey().getAlgorithm():\t" + certificate.getPublicKey().getAlgorithm());
 
 return certificate;
 }//genRootCertificate()
 
-
-//http://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.html
-private KeyPair genKeyPair(final String alias) {
-	KeyPair keyPair = null;
+public static void genKeyStore() {
+	//KeyStore store;
 	try {
-		KeyPairGenerator kpg = KeyPairGenerator.getInstance( KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
+		KEYSTORE = KeyStore.getInstance(keyStoreType, providerName);
+		KEYSTORE.load(null, null);
+		genKeyPair();
+		X509Certificate[] selfSignedCert = new X509Certificate[1];
+		selfSignedCert[0] = genRootCertificate(KEYPAIR , Alias);
 
-		kpg.initialize(
-				              new KeyGenParameterSpec.Builder(
-						                                             alias,
-						                                             KeyProperties.PURPOSE_SIGN)
-						              .setAlgorithmParameterSpec(new ECGenParameterSpec(NamedCurve))
-						              .setDigests(KeyProperties.DIGEST_SHA256
-						              )
-// Only permit the private key to be used if the user authenticated
-// within the last five minutes.
-								               //.setUserAuthenticationRequired(true)
-								               //.setUserAuthenticationValidityDurationSeconds(5 * 60)
+		KEYSTORE.setCertificateEntry(certKeyAlias, selfSignedCert[0]);
+		KEYSTORE.setKeyEntry(priKeyAlias, KEYPAIR.getPrivate(), keyStorePW, selfSignedCert);
+		//KEYSTORE.setKeyEntry(pubKeyAlias, KEYPAIR.getPublic(), keyStorePW, selfSignedCert);
 
-						              .build(),
-				              new SecureRandom());
-		keyPair = kpg.generateKeyPair();
-		Signature signature = Signature.getInstance(SHA256withECDSA);
-		signature.initSign(keyPair.getPrivate());
-
+		mLog.debug("KEYSTORE init'd");
 	}
-	catch(Exception X){X.printStackTrace();}
-return keyPair;
-}//genKeyPair
+	catch (KeyStoreException| NoSuchProviderException
+	       | IOException| NoSuchAlgorithmException| CertificateException    X) {
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("genKeyStore err", X);;
+		mLog.error(CRYPTOERR.toString());
+		throw CRYPTOERR;
+	}
+
+//return store;
+}
+
+private static void genKeyPair(){
+	KeyPairGenerator kpg;
+	try {
+		kpg = KeyPairGenerator.getInstance(ECDSA, providerName );
+	}
+	catch (NoSuchAlgorithmException| NoSuchProviderException X) {
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("genKeyPair err", X);;
+		mLog.error(CRYPTOERR.toString());
+		throw CRYPTOERR;
+	}
+
+	try {
+		ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(NamedCurve);
+		kpg.initialize(ecSpec, new SecureRandom());
+
+/*				                         kpg.initialize(
+						                                       new android.security.keystore.KeyGenParameterSpec.Builder(
+								                                                                                                Alias,
+								                                                                                                android.security.keystore.KeyProperties.PURPOSE_SIGN)
+								                                       .setAlgorithmParameterSpec(new java.security.spec.ECGenParameterSpec(NamedCurve))
+								                                       .setDigests(android.security.keystore.KeyProperties.DIGEST_SHA256
+								                                       )
+										                                        // Only permit the private key to be used if the user authenticated
+										                                        // within the last five minutes.
+										                                        //.setUserAuthenticationRequired(true)
+										                                        //.setUserAuthenticationValidityDurationSeconds(5 * 60)
+
+								                                       .build(),
+						                                       new java.security.SecureRandom());*/
+	} catch (java.security.InvalidAlgorithmParameterException X) {
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("genKeyPair initialize err", X);;
+		mLog.error(CRYPTOERR.toString());
+		throw CRYPTOERR;
+	}
+
+	KEYPAIR = kpg.generateKeyPair();
+	storeKey();
+	//return
+}
 
 
-private static final String testAlias = "JD test Alias";
+//https://github.com/boeboe/be.boeboe.spongycastle/commit/5942e4794c6f950a95409f2612fad7de7cc49b33
+private static void storeKey(){
+	String path = pkUtility.getInstance().getAppDataDir();
+	File file = new java.io.File(path, "/" + keyStoreFilename );
+	mLog.debug("KEYSTORE file: " + file.getAbsolutePath() );
+	try {
+		KEYSTORE.store(new FileOutputStream(file), keyStorePW);
+	}
+	catch (FileNotFoundException X){
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("storeKey err", X);;
+		mLog.error(CRYPTOERR.toString());
+		throw CRYPTOERR; }
+	catch ( CertificateException| NoSuchAlgorithmException| KeyStoreException| IOException  X){
+		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("storeKey err", X);;
+		mLog.error(CRYPTOERR.toString());
+		throw CRYPTOERR; }
+
+}//storeKey
+
+
+
 public byte[] getSignature(){
     if (this.signature == null)
     try {
-        KeyPair keyPair = getKeyPair(testAlias);
-//	    Signature ecdsaSign = Signature.getInstance(SHA256withECDSA, BouncyCastleProvider.PROVIDER_NAME);
-		mLog.debug("\ngetSignature()\n");
-	    initSecurity(Security.getProvider("AndroidKeyStoreBCWorkaround"));
-	    mLog.debug("\ngetSignature()\n");
-	    //Provider AndroidKeyStoreBCWorkaround = Security.getProvider("AndroidKeyStoreBCWorkaround");
-	    //Security.removeProvider("AndroidKeyStoreBCWorkaround");
-	    //listProviders();
-	   // mLog.debug("\n\nSecurity.insertProviderAt: " +Security.insertProviderAt(AndroidKeyStoreBCWorkaround, 1));
-		//listProviders();
+        KeyPair keyPair = getKeyPair();
 	    Signature ecdsaSign = Signature.getInstance(SHA256withECDSA);
-
-	    byte[] test = keyPair.getPrivate().getEncoded();
-//	    mLog.debug("keyPair.getPrivate().getEncoded():\t" + (test==null ? "null" : "NOT null ") );
-
-
-	    //PrivateKey privateKey = (PrivateKey) keyStore.getKey(testAlias, null);
 
 	    ecdsaSign.initSign(keyPair.getPrivate());
         ecdsaSign.update(this.message.getBytes(charset));
@@ -253,15 +290,14 @@ public byte[] getSignature(){
         throw CRYPTOERR;
     }//catch
 
-	initSecurity();
-	return signature;
+return signature;
 }//getSignature
 
 public boolean verify(){
     boolean retVal;
     try {
 	    Signature ecdsaVerify = Signature.getInstance(SHA256withECDSA);
-        ecdsaVerify.initVerify(getKeyPair(testAlias).getPublic());
+        ecdsaVerify.initVerify(getKeyPair().getPublic());
 	    ecdsaVerify.update(this.message.getBytes(charset));
         retVal = ecdsaVerify.verify( getSignature() );
 
@@ -300,35 +336,35 @@ return retVal.toString();
 
 //https://msdn.microsoft.com/en-us/library/windows/desktop/aa376502(v=vs.85).aspx
 // http://stackoverflow.com/questions/20532912/generating-the-csr-using-bouncycastle-api
-public PKCS10CertificationRequest generateCSR(){
-    KeyPair pair = this.getKeyPair(testAlias);
-
+public PKCS10CertificationRequest genCSR(){
+    KeyPair pair = getKeyPair();
+	PKCS10CertificationRequestBuilder p10Builder = null;
+	ContentSigner signer;
     X500Name subject = new X500NameBuilder( new BCStrictStyle() )
             .addRDN(BCStrictStyle.EmailAddress, "JD.John.Donaldson@gmail.com")
             .build();
 
-	mLog.debug("\ngenerateCSR()\n");
-	initSecurity(Security.getProvider("AndroidKeyStoreBCWorkaround"));
-	mLog.debug("\ngenerateCSR()\n");
 
-    PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
-            subject
-            , pair.getPublic() )
-            .setLeaveOffEmptyAttributes(true);
+	try {
+		PublicKey publicKey = KEYSTORE.getCertificate(certKeyAlias).getPublicKey();
+		p10Builder = new JcaPKCS10CertificationRequestBuilder(
+		    subject
+		    , publicKey )
+		    .setLeaveOffEmptyAttributes(true);
 
-    JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder(SHA256withECDSA);
-    ContentSigner signer;
+		JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder(SHA256withECDSA);
 
-    try { signer = csBuilder.build(pair.getPrivate()); }
-    catch (OperatorCreationException X) {
+
+		signer = csBuilder.build(pair.getPrivate());
+	}
+    catch (KeyStoreException| OperatorCreationException X) {
         pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("CSR err", X);
         mLog.error(CRYPTOERR.toString());
         throw CRYPTOERR;
     }
 	PKCS10CertificationRequest CSR = p10Builder.build(signer);
-	initSecurity();
 return CSR;
-}//generateCSR
+}//genCSR
 
 
 //Get the CSR as a PEM formatted String
@@ -405,10 +441,10 @@ static public void listCurves() {
 }
 
 
-private void keyStoreContents() {
+private static void keyStoreContents() {
 	try {
-		Enumeration<String> aliases = keyStore.aliases();
-		mLog.debug((aliases.hasMoreElements() ? "" : "Empty") + "keyStore contents" );
+		Enumeration<String> aliases = KEYSTORE.aliases();
+		mLog.debug((aliases.hasMoreElements() ? "" : "Empty") + "KEYSTORE contents" );
 		while (aliases.hasMoreElements() ) { mLog.debug(":\t" + aliases.nextElement().toString() ); }
 	}
 	catch( Exception X ){X.printStackTrace();}

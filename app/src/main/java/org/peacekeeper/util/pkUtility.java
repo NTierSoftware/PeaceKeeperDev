@@ -339,5 +339,14 @@ public TestResult Test(){ return TestResult.Netdown; }
 				.toString(); 
 }//toString()
 
-}//class pkUtility
+public String getAppDataDir(){
+return getApplicationInfo().dataDir;
+}
 
+/*
+public String getAnyDataDir(final String packageName) throws Exception {
+return getPackageManager().getPackageInfo(packageName, 0).applicationInfo.dataDir;
+}getAnyDataDir
+*/
+
+}//class pkUtility

@@ -14,14 +14,10 @@ import com.onesignal.OneSignal;
 
 import org.peacekeeper.crypto.SecurityGuard;
 import org.slf4j.*;
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.util.ContextInitializer;
 
 import org.json.JSONObject;
 
 import org.peacekeeper.util.pkUtility;
-
-import java.security.KeyStore;
 
 public class MainActivity extends AppCompatActivity {
 //begin static
@@ -29,6 +25,8 @@ public class MainActivity extends AppCompatActivity {
 //    static private final ContextInitializer	mContextInitializer		= new ContextInitializer( mLoggerContext );
     static private final Logger				mLog	= LoggerFactory.getLogger( MainActivity.class );
 //end static
+
+
 
     pkUtility mUtility;
     @Override
@@ -57,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
 	    SecurityGuard msg = new SecurityGuard("test and verify this text");
 
         mLog.debug("msg.verify(): " + Boolean.toString(msg.verify()));
-        mLog.debug("generateCSR:\n" + msg.toPEM(msg.generateCSR()) + "\n\n");
+        mLog.debug("genCSR:\n" + msg.toPEM(msg.genCSR()) + "\n\n");
 		finish();
     }//onCreate
 
