@@ -56,14 +56,14 @@ static private KeyStore KEYSTORE = null;
 static private final String ECDSA = "ECDSA", SHA256withECDSA = "SHA256withECDSA"
 		//, AndroidKeyStore = "AndroidKeyStore"
 		, charset = "UTF-8"
-		, NamedCurve = "secp256r1"
-	    , providerName = PROVIDER.getName() //"P-256"
-		, Alias = ".pkKey"
-		, pubKeyAlias = "Pub" + Alias
-		, priKeyAlias = "Pri" + Alias
+		, NamedCurve = "P-256" //"secp256r1"
+	    , providerName = PROVIDER.getName()
+		, Alias = ".pk"
+		, pubKeyAlias = "pub" + Alias
+		, priKeyAlias = "pri" + Alias
 		, certKeyAlias = "Cert" + Alias
 		, keyStoreType = "PKCS12"
-		, keyStoreFilename = "keystore" + Alias + "." + keyStoreType;
+		, keyStoreFilename = keyStoreType + Alias ;
 		;
 
 static private final char[] keyStorePW = "PeaceKeeperKeyStorePW".toCharArray();
