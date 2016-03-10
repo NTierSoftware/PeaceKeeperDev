@@ -51,8 +51,16 @@ public class MainActivity extends AppCompatActivity {
 	        }
         });
 
-	    //SecurityGuard.listAlgorithms(""); SecurityGuard.listCurves();
-	    SecurityGuard msg = new SecurityGuard("test and verify this text");
+
+	    mLog.debug("getANDROID_ID():\t" + mUtility.getANDROID_ID());
+	   // mLog.debug("getDeviceId():\t" + mUtility.getDeviceId());
+	    //mLog.debug("getSubscriberId():\t" + mUtility.getSubscriberId());
+	    mLog.debug("serialno:\t" + pkUtility.getSystemProperty("ro.serialno"));
+	    mLog.debug("android.os.Build.SERIAL:\t" + android.os.Build.SERIAL);
+	    SecurityGuard.unRegister();
+
+			        //SecurityGuard.listAlgorithms(""); SecurityGuard.listCurves();
+			        SecurityGuard msg = new SecurityGuard("test and verify this text");
 
         mLog.debug("msg.verify(): " + Boolean.toString(msg.verify()));
         mLog.debug("genCSR:\n" + msg.toPEM(msg.genCSR()) + "\n\n");

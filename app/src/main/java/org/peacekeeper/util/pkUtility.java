@@ -2,24 +2,24 @@ package org.peacekeeper.util;
 //usage: static public pkUtility mUtility;
 //mUtility = pkUtility.getInstance(this);
 
+import org.json.*;
+import android.content.*;
+import android.content.res.*;
+import android.net.*;
+import android.os.*;
+import android.preference.PreferenceManager;
+import android.provider.Settings;
+import android.telephony.TelephonyManager;
 
-import java.io.*;
-import java.lang.reflect.*;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
-//import org.acra.ACRA;
-
+import org.peacekeeper.app.R;
 import org.peacekeeper.exception.*;
 import org.slf4j.*;
 
-import android.content.*;
-import android.content.res.AssetManager;
-import android.content.res.Resources;
-import android.net.*;
-import android.net.wifi.WifiManager;
-import android.os.*;
-import android.preference.PreferenceManager;
+import java.io.*;
+import java.lang.reflect.Method;
+import java.util.*;
+
+//import org.acra.ACRA;
 
 //import com.ntier.util.Messages;
 
@@ -339,10 +339,72 @@ public TestResult Test(){ return TestResult.Netdown; }
 				.toString(); 
 }//toString()
 
-public String getAppDataDir(){
-return getApplicationInfo().dataDir;
-}
 
+/*
+//http://developer.samsung.com/technical-doc/view.do?v=T000000103
+public String getDeviceId(){
+//getDeviceId() function Returns the unique device ID. for example,the IMEI for GSM and the MEID or ESN for CDMA phones.
+	TelephonyManager telephonyManager = (TelephonyManager) getSystemService(mContext.TELEPHONY_SERVICE);
+return telephonyManager.getDeviceId();
+}//getDeviceId
+
+public String getSubscriberId(){
+// getDeviceId() function Returns the unique device ID. for example,the IMEI for GSM and the MEID or ESN for CDMA phones.
+	TelephonyManager telephonyManager = (TelephonyManager) getSystemService(mContext.TELEPHONY_SERVICE);
+return telephonyManager.getSubscriberId();
+}//getSubscriberId
+*/
+
+public String getANDROID_ID(){
+// Settings.Secure.ANDROID_ID returns the unique DeviceID Works for Android 2.2 and above
+//The value may change if a factory reset is performed on the device.
+return Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+}//getANDROID_ID
+
+public JSONObject getUniqDeviceID(){
+	JSONObject uniqDeviceID = new JSONObject();
+	try {
+		uniqDeviceID.put("ANDROID_ID", getANDROID_ID())
+					.put("SERIAL_NO", getSystemProperty("ro.serialno"))
+					.put("BUILD", android.os.Build.SERIAL)
+					//.put("UUID", UUID.randomUUID().toString())
+				;
+	} catch (org.json.JSONException e) {
+		e.printStackTrace();
+		uniqDeviceID = null;
+	}
+
+return uniqDeviceID;
+}//getUniqDeviceID
+
+
+public static String getSystemProperty(String sysProperty){
+// System Property "ro.serialno" returns the serial number as unique number Works for Android 2.3 and above
+	String retVal = null;
+	try {
+		Class<?> c = Class.forName("android.os.SystemProperties");
+		Method get = c.getMethod("get", String.class, String.class );
+		//serialnum = (String)(   get.invoke(c, "ro.serialno", "unknown" )  );
+		retVal =  (String)( get.invoke(c, sysProperty, null ) );
+	}
+	catch (Exception ignored){}
+return retVal;
+}//getSystemProperty
+
+public String getExternalStorageDirectory(){
+//String path = Environment.DIRECTORY_DOCUMENTS; //api 19
+	String path = Environment.DIRECTORY_DOWNLOADS; //api 8
+//	String path = pkUtility.getInstance().getAppDataDir();
+	//Environment.getExternalStorageDirectory().getCanonicalPath();
+	File file = new File(Environment.DIRECTORY_DOWNLOADS);
+	boolean DirCreated = file.isDirectory() || file.mkdirs();
+	mLog.debug("DirCreated?:\t" + Boolean.toString(DirCreated));
+
+return file.getAbsolutePath();
+//return Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + getString(R.string.app_name);
+}//getExternalStorageDirectory
+
+public String getAppDataDir(){ return getApplicationInfo().dataDir; }
 /*
 public String getAnyDataDir(final String packageName) throws Exception {
 return getPackageManager().getPackageInfo(packageName, 0).applicationInfo.dataDir;

@@ -22,12 +22,11 @@ package org.peacekeeper.crypto;
 
 import org.peacekeeper.exception.*;
 import org.peacekeeper.util.pkUtility;
-
 import org.slf4j.*;
-
 import org.spongycastle.asn1.sec.SECNamedCurves;
 import org.spongycastle.asn1.x500.*;
 import org.spongycastle.asn1.x500.style.*;
+import org.spongycastle.asn1.x509.Extension;
 import org.spongycastle.cert.*;
 import org.spongycastle.cert.jcajce.*;
 import org.spongycastle.jce.ECNamedCurveTable;
@@ -55,7 +54,6 @@ static private final Provider PROVIDER = new org.spongycastle.jce.provider.Bounc
 static private KeyPair KEYPAIR = null;
 static private KeyStore KEYSTORE = null;
 static private final String ECDSA = "ECDSA", SHA256withECDSA = "SHA256withECDSA"
-		//, AndroidKeyStore = "AndroidKeyStore"
 		, charset = "UTF-8"
 		, NamedCurve = "P-256" //"secp256r1"
 	    , providerName = PROVIDER.getName()
@@ -64,10 +62,11 @@ static private final String ECDSA = "ECDSA", SHA256withECDSA = "SHA256withECDSA"
 		, priKeyAlias = "pri" + Alias
 		, certKeyAlias = "Cert" + Alias
 		, keyStoreType = "PKCS12"
-		, keyStoreFilename = keyStoreType + Alias ;
+		, keyStoreFilename = keyStoreType + Alias
+		, uniqID = UUID.randomUUID().toString()
 		;
-
 static private final char[] keyStorePW = "PeaceKeeperKeyStorePW".toCharArray();
+
 
 //end static
 
@@ -78,12 +77,11 @@ static void initSecurity(){ initSecurity(PROVIDER); }
 
 //Moves provider to first place
 static void initSecurity(Provider provider){
-	listProviders();
 	Security.removeProvider(provider.getName());
 
 	int insertProviderAt = Security.insertProviderAt(provider, 1);
 	mLog.debug("insertProviderAt:\t" + Integer.toString(insertProviderAt)) ;
-	listProviders();
+	//mLog.debug( listProviders() );
 }//initSecurity
 
 public SecurityGuard(final String message) {
@@ -100,9 +98,7 @@ private KeyPair getKeyPair(){
 	mLog.debug("KEYSTORE " + (KEYSTORE == null ? "" : "NOT ") + "null");
 
 	if (KEYSTORE == null) { genKeyStore();}
-
-	try{mLog.debug("KEYSTORE does " + (KEYSTORE.containsAlias(priKeyAlias) ? "" : "NOT ") + "contain: "+ priKeyAlias);}
-	catch (Exception X){;}
+	keyStoreContents();
 
 	try {
 		if ( KEYSTORE.containsAlias(priKeyAlias)) {
@@ -122,19 +118,23 @@ private KeyPair getKeyPair(){
 	return KEYPAIR;
 }//getKeyPair
 
+private static X500Name getX500Name(){
+	return new X500NameBuilder(BCStyle.INSTANCE)
+				.addRDN(BCStrictStyle.EmailAddress, "JD.John.Donaldson@gmail.com")
+				.addRDN(BCStrictStyle.SERIALNUMBER, pkUtility.getInstance().getUniqDeviceID().toString())
+				.addRDN(BCStrictStyle.UNIQUE_IDENTIFIER, uniqID)
+				.addRDN(BCStyle.CN, Alias)
+			.build();
+}//getX500Name
 
 // http://www.programcreek.com/java-api-examples/index.php?class=org.spongycastle.cert.X509v3CertificateBuilder&method=addExtension
-private static X509Certificate genRootCertificate( KeyPair kp, String CN){
-	X509Certificate certificate = null;
+//private static X509Certificate genRootCertificate( KeyPair kp, String CN){
+private static X509Certificate genRootCertificate( KeyPair kp){
+	X509Certificate certificate;
 	try {
-		X500Name x500Name = new X500NameBuilder(BCStyle.INSTANCE)
-				                          .addRDN(BCStyle.CN, CN)
-							.build();
-
 		final Calendar start = Calendar.getInstance();
 		final Date now = start.getTime();
 		//expires in one day - just enough time to be replaced by CA CERT
-		//TODO consider genRootCertificate(KeyPair kp, String CN, Date expire )
 		start.add(Calendar.DATE, 1);
 		final Date expire = start.getTime();
 
@@ -151,14 +151,18 @@ private static X509Certificate genRootCertificate( KeyPair kp, String CN){
 
 		BigInteger serialnum = new BigInteger(80, new SecureRandom());//new Random()),
 
+		//Is X509v3CertificateBuilder ok for a Root Cert??
 		X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder(
-                                      x500Name, //builder.build(),
+                                      getX500Name(), //builder.build(),
                                       serialnum,
                                       now, //new Date(System.currentTimeMillis() - 50000),
                                       expire,
-                                      x500Name, //builder.build(),
+                                      getX500Name(),
                                       kp.getPublic()
-									);
+									)
+				.addExtension( UniqID() )
+
+				;
 		X509CertificateHolder certHolder = certGen.build(signer);
 
 
@@ -169,16 +173,14 @@ private static X509Certificate genRootCertificate( KeyPair kp, String CN){
 
 
 		certificate = new JcaX509CertificateConverter()
-				              //.setProvider(BouncyCastleProvider.PROVIDER_NAME)
+				              .setProvider(PROVIDER.getName())
 				              .getCertificate(certHolder);
 	}//try
-	catch( OperatorCreationException| CertificateException X ) {
+	catch( OperatorCreationException| CertificateException| CertIOException X ) {
 		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("Crypto selfSignedCert gen err", X);
 		mLog.error(CRYPTOERR.toString());
 		throw CRYPTOERR;
 	}
-
-
 
 
 	mLog.debug( "genroot kp.getPublic().getAlgorithm(): \t" + kp.getPublic().getAlgorithm() );
@@ -187,13 +189,31 @@ private static X509Certificate genRootCertificate( KeyPair kp, String CN){
 return certificate;
 }//genRootCertificate()
 
+//http://stackoverflow.com/questions/16412315/creating-custom-x509-v3-extensions-in-java-with-bouncy-castle
+//http://www.ietf.org/rfc/rfc3280.txt
+private static Extension UniqID(){
+	byte[] UniqID = null;
+	try {
+		String id = pkUtility.getInstance().getUniqDeviceID().toString();
+		UniqID = id.getBytes(charset);
+		mLog.debug("getUniqDeviceID():\t" + id);
+	} catch (java.io.UnsupportedEncodingException e) {
+		e.printStackTrace();
+	}
+//	ASN1ObjectIdentifier asn1iod = new ASN1ObjectIdentifier("1.2.3.4");
+//	return new Extension( asn1iod, true, UniqID);
+	return new Extension( Extension.subjectAlternativeName, true, UniqID);
+}//UniqID
+
+
 public static void genKeyStore() {
 	try {
 		KEYSTORE = KeyStore.getInstance(keyStoreType, providerName);
 		KEYSTORE.load(null, null);
 		genKeyPair();
+		storeKey();
 		X509Certificate[] selfSignedCert = new X509Certificate[1];
-		selfSignedCert[0] = genRootCertificate(KEYPAIR , Alias);
+		selfSignedCert[0] = genRootCertificate(KEYPAIR);
 
 		KEYSTORE.setCertificateEntry(certKeyAlias, selfSignedCert[0]);
 		KEYSTORE.setKeyEntry(priKeyAlias, KEYPAIR.getPrivate(), keyStorePW, selfSignedCert);
@@ -244,15 +264,19 @@ private static void genKeyPair(){
 	}
 
 	KEYPAIR = kpg.generateKeyPair();
-	storeKey();
 }//genKeyPair
-
 
 //https://github.com/boeboe/be.boeboe.spongycastle/commit/5942e4794c6f950a95409f2612fad7de7cc49b33
 private static void storeKey(){
+//	String path = pkUtility.getInstance().getExternalStorageDirectory();
 	String path = pkUtility.getInstance().getAppDataDir();
-	File file = new java.io.File(path, "/" + keyStoreFilename );
-	mLog.debug("KEYSTORE file: " + file.getAbsolutePath() );
+
+	mLog.debug("storeKey path:\t" + path);
+
+	File file = new File(path, keyStoreFilename );
+	file.getParentFile().mkdirs();
+	mLog.debug("storeKey KEYSTORE file: " + file.getAbsolutePath() );
+
 	try {
 		KEYSTORE.store(new FileOutputStream(file), keyStorePW);
 	}
@@ -333,30 +357,26 @@ return retVal.toString();
 // http://stackoverflow.com/questions/20532912/generating-the-csr-using-bouncycastle-api
 public PKCS10CertificationRequest genCSR(){
     KeyPair pair = getKeyPair();
-	PKCS10CertificationRequestBuilder p10Builder = null;
+	PKCS10CertificationRequestBuilder p10Builder;
 	ContentSigner signer;
-    X500Name subject = new X500NameBuilder( new BCStrictStyle() )
-            .addRDN(BCStrictStyle.EmailAddress, "JD.John.Donaldson@gmail.com")
-            .build();
-
 
 	try {
 		PublicKey publicKey = KEYSTORE.getCertificate(certKeyAlias).getPublicKey();
 		p10Builder = new JcaPKCS10CertificationRequestBuilder(
-		    subject
+             getX500Name()
 		    , publicKey )
-		    .setLeaveOffEmptyAttributes(true);
+		    .setLeaveOffEmptyAttributes(true)
+		;
 
 		JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder(SHA256withECDSA);
 
-
 		signer = csBuilder.build(pair.getPrivate());
-	}
-    catch (KeyStoreException| OperatorCreationException X) {
+	}catch (KeyStoreException| OperatorCreationException X) {
         pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("CSR err", X);
         mLog.error(CRYPTOERR.toString());
         throw CRYPTOERR;
     }
+
 	PKCS10CertificationRequest CSR = p10Builder.build(signer);
 return CSR;
 }//genCSR
@@ -366,22 +386,14 @@ return CSR;
 public String toPEM(PKCS10CertificationRequest CSR){
     StringWriter str = new StringWriter();
     JcaPEMWriter pemWriter = new JcaPEMWriter(str);
-    String retVal = "";
-    try
-/*
-	    (
-		        StringWriter str = new StringWriter();
-		        JcaPEMWriter pemWriter = new JcaPEMWriter(str);
-        )
-*/
-    {
+    String retVal;
+    try{
         PemObject pemObject = new PemObject("CERTIFICATE REQUEST", CSR.getEncoded());
         pemWriter.writeObject(pemObject);
         pemWriter.close();
         str.close();
         retVal = str.toString();
     } catch (IOException X) {
-        retVal = "";
         pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("toPEM err", X);
         mLog.error(CRYPTOERR.toString());
         throw CRYPTOERR; }
@@ -390,15 +402,21 @@ return retVal;
 
 static public boolean unRegister(){
 	boolean retval = false;
-return retval;
+	keyStoreContents();
+	try {
+		java.util.Enumeration<String> aliases = KEYSTORE.aliases();
+		while (aliases.hasMoreElements() ) { KEYSTORE.deleteEntry( aliases.nextElement().toString() ); }
+	} catch (Exception X) {}
+
+	keyStoreContents();
+	return retval;
 }//unRegister()
 
 //see https://github.com/nelenkov/ecdh-kx/blob/master/src/org/nick/ecdhkx/Crypto.java
 static public void listAlgorithms(String algFilter) {
 	java.security.Provider[] providers = java.security.Security.getProviders();
 	for (java.security.Provider p : providers) {
-		String providerStr = String.format("%s/%s/%f\n", p.getName(),
-				                                  p.getInfo(), p.getVersion());
+		String providerStr = String.format("%s/%s/%f\n", p.getName(), p.getInfo(), p.getVersion());
 		mLog.debug(providerStr);
 		java.util.Set<Service> services = p.getServices();
 		java.util.List<String> algs = new java.util.ArrayList<String>();
@@ -408,7 +426,6 @@ static public void listAlgorithms(String algFilter) {
 				match = s.getAlgorithm().toLowerCase()
 						        .contains(algFilter.toLowerCase());
 			}
-
 
 			if (match) {
 				String algStr = String.format("\t%s/%s/%s", s.getType(),
@@ -437,13 +454,14 @@ static public void listCurves() {
 private static void keyStoreContents() {
 	try {
 		Enumeration<String> aliases = KEYSTORE.aliases();
+
 		mLog.debug((aliases.hasMoreElements() ? "" : "Empty") + "KEYSTORE contents" );
 		while (aliases.hasMoreElements() ) { mLog.debug(":\t" + aliases.nextElement().toString() ); }
-	}
-	catch( Exception X ){X.printStackTrace();}
+	} catch (Exception e) { mLog.debug("Empty KEYSTORE contents" ); }
+
 }//keyStoreContents
 
-static public void listProviders(){
+static public String listProviders(){
 	Provider[] providers = Security.getProviders();
 	StringBuilder list = new StringBuilder().append("Num providers: " + providers.length );
 	int i = 0;
@@ -457,7 +475,7 @@ static public void listProviders(){
 		}
 	}
 
-	mLog.debug(list.toString());
+	return list.toString();
 }//listProviders
 
 }//class SecurityGuard

@@ -17,7 +17,7 @@ public class pkException extends RuntimeException {
     private static final long serialVersionUID = 1L;
     private pkErrCode mErrCode;
 
-    private static final Logger	log	= LoggerFactory.getLogger( pkException.class );
+    private static final Logger	mLog	= LoggerFactory.getLogger( pkException.class );
 
     public static pkException wrap(Throwable exception, pkErrCode errorCode) {
 /*    	Long, redundant stack traces help no one. 
