@@ -1,4 +1,4 @@
-package org.peacekeeper.crypto;
+package org.peacekeeper.account;
 
 /**
  * Created by NTier on 2/24/2016.
@@ -17,7 +17,7 @@ boolean Registered()
 
 Register(String alias){
 create and persist keypair (= private key + self-signed cert)
-send CSR
+send CertSignRequest
 receive CA Cert.
 replace persisted self-signed cert w/ CA Cert
 }

@@ -160,17 +160,12 @@ private static X509Certificate genRootCertificate( KeyPair kp){
                                       getX500Name(),
                                       kp.getPublic()
 									)
-				.addExtension( UniqID() )
-
-				;
+								.addExtension( UniqID() )
+								;
 		X509CertificateHolder certHolder = certGen.build(signer);
 
-
-/*
-		algo = daf.getAlgorithmName(certHolder.getSignatureAlgorithm());
-		mLog.debug("genroot certHolder.getSignatureAlgorithm(): \t" + algo);
-*/
-
+//		algo = daf.getAlgorithmName(certHolder.getSignatureAlgorithm());
+//		mLog.debug("genroot certHolder.getSignatureAlgorithm(): \t" + algo);
 
 		certificate = new JcaX509CertificateConverter()
 				              .setProvider(PROVIDER.getName())
@@ -183,9 +178,8 @@ private static X509Certificate genRootCertificate( KeyPair kp){
 	}
 
 
-	mLog.debug( "genroot kp.getPublic().getAlgorithm(): \t" + kp.getPublic().getAlgorithm() );
-	mLog.debug("certificate.getPublicKey().getAlgorithm():\t" + certificate.getPublicKey().getAlgorithm());
-
+	//mLog.debug( "genroot kp.getPublic().getAlgorithm(): \t" + kp.getPublic().getAlgorithm() );
+	//mLog.debug("certificate.getPublicKey().getAlgorithm():\t" + certificate.getPublicKey().getAlgorithm());
 return certificate;
 }//genRootCertificate()
 
@@ -202,7 +196,7 @@ private static Extension UniqID(){
 	}
 //	ASN1ObjectIdentifier asn1iod = new ASN1ObjectIdentifier("1.2.3.4");
 //	return new Extension( asn1iod, true, UniqID);
-	return new Extension( Extension.subjectAlternativeName, true, UniqID);
+return new Extension( Extension.subjectAlternativeName, true, UniqID);
 }//UniqID
 
 
@@ -242,21 +236,21 @@ private static void genKeyPair(){
 	try {
 		ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(NamedCurve);
 		kpg.initialize(ecSpec, new SecureRandom());
+/*
+			kpg.initialize(
+			new android.security.keystore.KeyGenParameterSpec.Builder(
+			Alias,
+			android.security.keystore.KeyProperties.PURPOSE_SIGN)
+			.setAlgorithmParameterSpec(new java.security.spec.ECGenParameterSpec(NamedCurve))
+			.setDigests(android.security.keystore.KeyProperties.DIGEST_SHA256
+			)
+			// Only permit the private key to be used if the user authenticated
+			// within the last five minutes.
+			//.setUserAuthenticationRequired(true)
+			//.setUserAuthenticationValidityDurationSeconds(5 * 60)
 
-/*				                         kpg.initialize(
-						                                       new android.security.keystore.KeyGenParameterSpec.Builder(
-								                                                                                                Alias,
-								                                                                                                android.security.keystore.KeyProperties.PURPOSE_SIGN)
-								                                       .setAlgorithmParameterSpec(new java.security.spec.ECGenParameterSpec(NamedCurve))
-								                                       .setDigests(android.security.keystore.KeyProperties.DIGEST_SHA256
-								                                       )
-										                                        // Only permit the private key to be used if the user authenticated
-										                                        // within the last five minutes.
-										                                        //.setUserAuthenticationRequired(true)
-										                                        //.setUserAuthenticationValidityDurationSeconds(5 * 60)
-
-								                                       .build(),
-						                                       new java.security.SecureRandom());*/
+			.build(),
+			new java.security.SecureRandom());*/
 	} catch (java.security.InvalidAlgorithmParameterException X) {
 		pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("genKeyPair initialize err", X);;
 		mLog.error(CRYPTOERR.toString());
@@ -372,7 +366,7 @@ public PKCS10CertificationRequest genCSR(){
 
 		signer = csBuilder.build(pair.getPrivate());
 	}catch (KeyStoreException| OperatorCreationException X) {
-        pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("CSR err", X);
+        pkException CRYPTOERR = new pkException(pkErrCode.CRYPTO).set("CertSignRequest err", X);
         mLog.error(CRYPTOERR.toString());
         throw CRYPTOERR;
     }
@@ -382,7 +376,7 @@ return CSR;
 }//genCSR
 
 
-//Get the CSR as a PEM formatted String
+//Get the CertSignRequest as a PEM formatted String
 public String toPEM(PKCS10CertificationRequest CSR){
     StringWriter str = new StringWriter();
     JcaPEMWriter pemWriter = new JcaPEMWriter(str);
@@ -406,7 +400,7 @@ static public boolean unRegister(){
 	try {
 		java.util.Enumeration<String> aliases = KEYSTORE.aliases();
 		while (aliases.hasMoreElements() ) { KEYSTORE.deleteEntry( aliases.nextElement().toString() ); }
-	} catch (Exception X) {}
+	} catch (Exception ignored){}
 
 	keyStoreContents();
 	return retval;
@@ -457,8 +451,7 @@ private static void keyStoreContents() {
 
 		mLog.debug((aliases.hasMoreElements() ? "" : "Empty") + "KEYSTORE contents" );
 		while (aliases.hasMoreElements() ) { mLog.debug(":\t" + aliases.nextElement().toString() ); }
-	} catch (Exception e) { mLog.debug("Empty KEYSTORE contents" ); }
-
+	} catch (Exception X) { mLog.debug("Empty KEYSTORE contents" ); }
 }//keyStoreContents
 
 static public String listProviders(){
@@ -475,7 +468,7 @@ static public String listProviders(){
 		}
 	}
 
-	return list.toString();
+return list.toString();
 }//listProviders
 
 }//class SecurityGuard

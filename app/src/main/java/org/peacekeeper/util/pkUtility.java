@@ -1,17 +1,17 @@
 package org.peacekeeper.util;
-//usage: static public pkUtility mUtility;
-//mUtility = pkUtility.getInstance(this);
+/** @author JD see http://developer.android.com/training/basics/data-storage/files.html
+	usage: static public pkUtility mUtility;
+	mUtility = pkUtility.getInstance(this);
+*/
 
-import org.json.*;
 import android.content.*;
 import android.content.res.*;
 import android.net.*;
 import android.os.*;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
-import android.telephony.TelephonyManager;
 
-import org.peacekeeper.app.R;
+import org.json.JSONObject;
 import org.peacekeeper.exception.*;
 import org.slf4j.*;
 
@@ -19,14 +19,6 @@ import java.io.*;
 import java.lang.reflect.Method;
 import java.util.*;
 
-//import org.acra.ACRA;
-
-//import com.ntier.util.Messages;
-
-/**
- * @author JD see
- *    http://developer.android.com/training/basics/data-storage/files.html
- */
 
 public class pkUtility extends ContextWrapper {
 
@@ -34,12 +26,11 @@ private static pkUtility mUtility;
 private static final Logger	mLog	= LoggerFactory.getLogger( pkUtility.class );
 
 private static final String		ExternalStorageState	= Environment.getExternalStorageState()
-								, SHARED_PREFS_FNAME = "PK.sharedprefs"
+								//, SHARED_PREFS_FNAME = "PK.sharedprefs"
 								, ConnectionPropertiesFname = "Connection.properties"
 								;
 
 
-//private static LocationManager mLocMgr;
 private static ConnectivityManager mConnMgr;
 private AssetManager mAssetManager;
 //private static SharedPreferences mSharedPreferences;
