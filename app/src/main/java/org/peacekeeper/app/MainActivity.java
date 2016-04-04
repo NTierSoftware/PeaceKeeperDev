@@ -9,16 +9,17 @@ import android.view.*;
 import com.onesignal.OneSignal;
 
 import org.json.JSONObject;
-import org.peacekeeper.crypto.SecurityGuard;
-import org.peacekeeper.util.pkUtility;
+import org.peacekeeper.util.*;
 import org.slf4j.*;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.util.ContextInitializer;
 import ch.qos.logback.core.joran.spi.JoranException;
 
+//import org.peacekeeper.crypto.Registrar;
 
-public class MainActivity extends AppCompatActivity {
+
+public class MainActivity extends AppCompatActivity implements AsyncResponse {
 //begin static
 static private final Logger	mLog = LoggerFactory.getLogger( MainActivity.class );
 static private final LoggerContext mLoggerContext = (LoggerContext)LoggerFactory.getILoggerFactory();
@@ -30,7 +31,7 @@ private pkUtility mUtility;
 @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     mLog.trace("OnCreate:\t");
-    mUtility = pkUtility.getInstance(this);
+    //mUtility = pkUtility.getInstance(this);
     OneSignal.startInit(this)
             .setNotificationOpenedHandler(new pkNotificationOpenedHandler())
             .init();
@@ -41,28 +42,13 @@ private pkUtility mUtility;
 
     FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
     fab.setOnClickListener(new View.OnClickListener() {
-        @Override
-        public void onClick(View view) {
-	        Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-			        .setAction("Action", null).show();
-        }
+	    @Override public void onClick(View view) {
+		    Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+				    .setAction("Action", null).show();
+	    }
     });
-
-
-    mLog.debug("getANDROID_ID():\t" + mUtility.getANDROID_ID());
-   // mLog.debug("getDeviceId():\t" + mUtility.getDeviceId());
-    //mLog.debug("getSubscriberId():\t" + mUtility.getSubscriberId());
-    mLog.debug("serialno:\t" + pkUtility.getSystemProperty("ro.serialno"));
-    mLog.debug("android.os.Build.SERIAL:\t" + android.os.Build.SERIAL);
-    SecurityGuard.unRegister();
-
-		        //SecurityGuard.listAlgorithms(""); SecurityGuard.listCurves();
-    SecurityGuard msg = new SecurityGuard("test and verify this text");
-
-    mLog.debug("msg.verify(): " + Boolean.toString(msg.verify()));
-    mLog.debug("genCSR:\n" + msg.toPEM(msg.genCSR()) + "\n\n");
-	finish();
 }//onCreate
+
 @Override protected void onRestart(){
 	super.onRestart();
 	// Reload Logback log: http://stackoverflow.com/questions/3803184/setting-logback-appender-path-programmatically/3810936#3810936
@@ -74,6 +60,20 @@ private pkUtility mUtility;
 	//mLog.trace( "onRestart: mGoogleApiClient: " + mGoogleApiClient.isConnected()  );
 }//onRestart()
 
+@Override protected void onStart(){
+	mLog.trace("onStart():\t");
+	super.onStart();
+	mUtility = pkUtility.getInstance(this);
+	mLog.debug("serialno:\t" + pkUtility.getSystemProperty("ro.serialno"));
+	mLog.debug("android.os.Build.SERIAL:\t" + android.os.Build.SERIAL);
+	//Registrar registrar = new Registrar(this);
+	//registrar.execute();
+//	String url = "https://localhost:8181//GaelWebSvcGF4//rest//GAEL//Status";
+	//String url = "http://localhost:8080/GaelWebSvcGF4/rest/GAEL/Status";
+	String url = "http://192.168.1.242:8080/GaelWebSvcGF4/rest/GAEL/Status";
+
+	org.peacekeeper.rest.Get myget = new org.peacekeeper.rest.Get(url);
+}
 @Override protected void onStop(){
 	mLog.trace("onStop():\t");
 
@@ -86,6 +86,7 @@ private pkUtility mUtility;
 	super.onDestroy();
 	mLog.trace("onDestroy():\t");
 	mLoggerContext.stop();//flush log
+	//mUtility.close();
 }
 
 @Override public boolean onCreateOptionsMenu(Menu menu) {
@@ -95,16 +96,33 @@ return true;
 }//onCreateOptionsMenu
 
 @Override public boolean onOptionsItemSelected(MenuItem item) {
-    // Handle action bar item clicks here. The action bar will
-    // automatically handle clicks on the Home/Up button, so long
-    // as you specify a parent activity in AndroidManifest.xml.
-    int id = item.getItemId();
+    // Handle action bar item clicks here.
 
-    //noinspection SimplifiableIfStatement
-    if (id == R.id.action_settings) { return true; }
+	switch ( item.getItemId() ){
+		case R.id.action_settings:
+			break;
+/*
+		case R.id.action_email:
+			mGAELUtility.sendEmail();
+			break;
+		case R.id.action_test:
+			Test();
+			break;
+*/
+		case R.id.action_Exit:
+			finish();
+			//this.onDestroy();
+			break;
+		default:
+	}// switch
 
 return super.onOptionsItemSelected(item);
 }//onOptionsItemSelected
+
+@Override
+public void processFinish(final String output) {
+
+}
 
 
 // This fires when a notification is opened by tapping on it or one is received while the app is runnning.

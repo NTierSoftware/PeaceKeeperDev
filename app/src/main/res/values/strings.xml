@@ -11,6 +11,7 @@ see files
 -->
     <string name="AUTHORITY">org.peacekeeper.android.SQLite.Provider</string>
     <string name="accountType">peacekeeper.authenticator.com</string>
+    <string name="AuthSvcDesc">Authorizes PeaceKeeper</string>
 
 <!--
     <string name="crash_toast_text">PeaceKeeper is sending status now.</string>
@@ -24,7 +25,7 @@ see files
 -->
 
     <string name="SyncSvcDesc">Syncs PeaceKeeper mobile data to the Webserver</string>
-    <string name="AuthSvcDesc">Authorizes PeaceKeeper</string>
     <string name="action_settings">Settings???correct this</string>
+    <string name="action_Exit">Exit</string>
 
 </resources>

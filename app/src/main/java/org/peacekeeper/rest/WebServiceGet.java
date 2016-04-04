@@ -42,6 +42,7 @@ public String get(Contract.URLGet urlget) {
 	switch (urlget) {
 	case Test  :
 		Deployment deploy = new Gson().fromJson(result, Deployment.class);
+
 		mLog.debug(deploy.toString());
 		break;
 

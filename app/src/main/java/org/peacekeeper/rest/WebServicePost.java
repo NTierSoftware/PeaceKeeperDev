@@ -59,7 +59,7 @@ return result;
 }//post
 
 	
-static public void writeJsonStream(final JSONArray JSON, HttpsURLConnection urlConnection ) throws IOException {
+static private void writeJsonStream(final JSONArray JSON, HttpsURLConnection urlConnection ) throws IOException {
 	OutputStream outputStream = null,
 				 bufferedOutputStream = null;
 

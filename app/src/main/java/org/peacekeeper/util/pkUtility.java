@@ -11,7 +11,11 @@ import android.os.*;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 
-import org.json.JSONObject;
+import com.android.volley.*;
+import com.android.volley.Network;
+import com.android.volley.toolbox.*;
+
+import org.json.*;
 import org.peacekeeper.exception.*;
 import org.slf4j.*;
 
@@ -20,7 +24,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 
 
-public class pkUtility extends ContextWrapper {
+public class pkUtility extends ContextWrapper{//implements AutoCloseable
 
 private static pkUtility mUtility;
 private static final Logger	mLog	= LoggerFactory.getLogger( pkUtility.class );
@@ -33,8 +37,6 @@ private static final String		ExternalStorageState	= Environment.getExternalStora
 
 private static ConnectivityManager mConnMgr;
 private AssetManager mAssetManager;
-//private static SharedPreferences mSharedPreferences;
-//http://possiblemobile.com/2013/06/context/
 
 private static Context mContext;
 public static pkUtility getInstance(Context context){
@@ -48,6 +50,8 @@ public static pkUtility getInstance(Context context){
 public static pkUtility getInstance(){
 	 if (mUtility == null) {throw new pkException(pkErrCode.INITIALIZATION_NEEDED); }//ERRROR pkUtility must be initialized!
     return mUtility;
+
+
 }
 
 //private constructor prevents instantiation.  We only need/want one of these.
@@ -63,7 +67,7 @@ private pkUtility(Context context) {
 /* Checks if external storage is available for read and write */
 public static boolean isExternalStorageWritable(){ return Environment.MEDIA_MOUNTED.equals( ExternalStorageState ); }
 /* Checks if external storage is available to at least read */
-public static boolean isExternalStorageReadable(){ return Environment.MEDIA_MOUNTED_READ_ONLY.equals( ExternalStorageState ); }
+public static boolean isExternalStorageReadable(){ return Environment.MEDIA_MOUNTED_READ_ONLY.equals(ExternalStorageState); }
 
 
 public static boolean isAndroidOnline(){
@@ -78,7 +82,7 @@ public static boolean isAndroidOnline(){
 	}
 	mLog.trace( "network detected" );
 	final boolean isConnected = networkInfo.isConnected();
-	mLog.trace( "network " + (isConnected? "" : "  NOT!!  ") + "connected" );
+	mLog.trace("network " + (isConnected ? "" : "  NOT!!  ") + "connected");
 	return isConnected;
 }// isAndroidOnline()
 
@@ -279,12 +283,13 @@ public Properties getPropertiesFromAssets(String AssetFilename){
 
 public String getServerIPaddr(){
 	return PreferenceManager.getDefaultSharedPreferences(this)
-			.getString("ServerIPaddr", 
-			getPropertiesFromAssets(ConnectionPropertiesFname)
-    		.getProperty("ServerIPaddrDefault"));
+			.getString("ServerIPaddr",
+					          getPropertiesFromAssets(ConnectionPropertiesFname)
+							          .getProperty("ServerIPaddrDefault"));
 }
 
 public Resources getResources(){ return mContext.getResources();}
+
 
 /*
 public boolean registerDevice(boolean FORCE){
@@ -346,7 +351,7 @@ return telephonyManager.getSubscriberId();
 }//getSubscriberId
 */
 
-public String getANDROID_ID(){
+private String getANDROID_ID(){
 // Settings.Secure.ANDROID_ID returns the unique DeviceID Works for Android 2.2 and above
 //The value may change if a factory reset is performed on the device.
 return Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -355,16 +360,15 @@ return Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_I
 public JSONObject getUniqDeviceID(){
 	JSONObject uniqDeviceID = new JSONObject();
 	try {
-		uniqDeviceID.put("ANDROID_ID", getANDROID_ID())
+		uniqDeviceID.put("ANDROID_ID", getANDROID_ID() )
 					.put("SERIAL_NO", getSystemProperty("ro.serialno"))
 					.put("BUILD", android.os.Build.SERIAL)
-					//.put("UUID", UUID.randomUUID().toString())
+					.put("randomUUID", UUID.randomUUID().toString() )
 				;
-	} catch (org.json.JSONException e) {
+	} catch (JSONException e) {
 		e.printStackTrace();
 		uniqDeviceID = null;
 	}
-
 return uniqDeviceID;
 }//getUniqDeviceID
 
@@ -383,16 +387,12 @@ return retVal;
 }//getSystemProperty
 
 public String getExternalStorageDirectory(){
-//String path = Environment.DIRECTORY_DOCUMENTS; //api 19
 	String path = Environment.DIRECTORY_DOWNLOADS; //api 8
-//	String path = pkUtility.getInstance().getAppDataDir();
-	//Environment.getExternalStorageDirectory().getCanonicalPath();
 	File file = new File(Environment.DIRECTORY_DOWNLOADS);
 	boolean DirCreated = file.isDirectory() || file.mkdirs();
 	mLog.debug("DirCreated?:\t" + Boolean.toString(DirCreated));
 
 return file.getAbsolutePath();
-//return Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + getString(R.string.app_name);
 }//getExternalStorageDirectory
 
 public String getAppDataDir(){ return getApplicationInfo().dataDir; }
@@ -401,5 +401,39 @@ public String getAnyDataDir(final String packageName) throws Exception {
 return getPackageManager().getPackageInfo(packageName, 0).applicationInfo.dataDir;
 }getAnyDataDir
 */
+
+static private RequestQueue mRequestQueue = null;
+static private final int maxCacheSizeInBytes = 1024 * 1024 * 2;//= 2Mb
+public RequestQueue getRequestQueue() {
+	if (mRequestQueue == null){
+		Cache cache = new DiskBasedCache(getCacheDir(), maxCacheSizeInBytes);
+		Network network = new BasicNetwork(new HurlStack());
+		mRequestQueue = new RequestQueue(cache, network);
+		mRequestQueue.start();
+	}
+return mRequestQueue;
+
+}
+
+
+public void close(){//throws Exception
+	try {
+		if (mRequestQueue != null){
+			//http://stackoverflow.com/questions/16774667/cancel-all-volley-requests-android
+			mRequestQueue.cancelAll(new RequestQueue.RequestFilter(){
+				@Override public boolean apply(Request<?> request){
+					mLog.debug("request running: " + request.getTag().toString());
+					return true;
+				}
+			});
+
+			mRequestQueue.stop();
+		}
+
+		if (mAssetManager != null) mAssetManager.close();
+
+	}
+	catch(Exception X){ mLog.error("pkUtility close error");}
+}//close()
 
 }//class pkUtility

@@ -65,8 +65,8 @@ public Contract() {
 	// Populate from res/values/strings.xml
 	// The authority for the sync adapter's content provider.
 	AUTHORITY    = resources.getString( R.string.AUTHORITY );
-	ACCOUNT_TYPE = resources.getString( R.string.accountType );
-
+	ACCOUNT_TYPE = resources.getString(R.string.accountType);
+//TODO
     mSyncAccount = getSyncAccount();
     mUriBuilder.authority(AUTHORITY);
 }//constructor
@@ -143,10 +143,10 @@ private Account getSyncAccount() {
 
 static	public String getAuthority(){ return AUTHORITY;}
 	
-	private String getDeviceAccountPW(){
-		return pkUtil.getPropertiesFromAssets(ConnectionPropertiesFname)
-						  .getProperty("accountpw");
-	}
+private String getDeviceAccountPW(){
+return pkUtil.getPropertiesFromAssets(ConnectionPropertiesFname)
+			  .getProperty("accountpw");
+}
 
 	
 	//put all the SQLite tablenames that will be inserted/queried/CRUD here:
@@ -171,7 +171,7 @@ static	public Uri toUri(TableNames table){ return mUriBuilder.fragment(table.nam
 	public static enum URLGet { Test, Status; }//enum GET
 
 	public static enum URLPost{
-		CertSignRequest, //Certificate Signature Request
+		registrations, //Certificate Signature Request
 		ACRAException; }
 
 

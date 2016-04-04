@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
     <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".pkApplication"
@@ -26,5 +27,21 @@
             </intent-filter>
         </activity>
     </application>
+
+
+    <!-- See http://developer.android.com/training/sync-adapters/creating-authenticator.html#DeclareAuthenticator -->
+    <service
+        android:name="org.peacekeeper.account.AuthenticatorService"
+        android:exported="false"
+        android:description="@string/AuthSvcDesc"
+        android:label="@string/AuthSvcDesc"
+        android:stopWithTask="false">
+        <intent-filter>
+            <action android:name="android.accounts.AccountAuthenticator"/>
+        </intent-filter>
+        <meta-data
+            android:name="android.accounts.AccountAuthenticator"
+            android:resource="@xml/authenticator" />
+    </service>
 
 </manifest>
