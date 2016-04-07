@@ -27,7 +27,7 @@ public Put(URLPost url){
 		}
 	});
 
-	switch (url) {
+	switch (url) { 
 		case registrations:
 			break;
 
