@@ -1,9 +1,7 @@
 package org.peacekeeper.account;
 
-import android.accounts.Account;
-import android.accounts.AccountManager;
-import android.content.Context;
-import android.content.SharedPreferences;
+import android.accounts.*;
+import android.content.*;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.preference.PreferenceManager;
@@ -12,8 +10,6 @@ import org.peacekeeper.app.R;
 import org.peacekeeper.exception.*;
 import org.peacekeeper.util.pkUtility;
 import org.slf4j.*;
-
-import java.net.*;
 
 
 //public  final class Contract{
@@ -168,6 +164,7 @@ static	public Uri toUri(TableNames table){ return mUriBuilder.fragment(table.nam
 
 	
 //PLACE ALL URL NAMES HERE	
+/*
 	public static enum URLGet { Test, Status; }//enum GET
 
 	public static enum URLPost{
@@ -180,5 +177,6 @@ static	public Uri toUri(TableNames table){ return mUriBuilder.fragment(table.nam
 		catch (MalformedURLException e) { e.printStackTrace(); }
 	return null;
 	}
-	
+*/
+
 }//class Contract 

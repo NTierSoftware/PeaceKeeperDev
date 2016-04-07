@@ -1,7 +1,6 @@
 package org.peacekeeper.app;
 
 import android.os.Bundle;
-import android.support.design.widget.*;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.*;
@@ -10,7 +9,8 @@ import com.onesignal.OneSignal;
 
 import org.json.JSONObject;
 import org.peacekeeper.util.*;
-import org.slf4j.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.util.ContextInitializer;
@@ -19,10 +19,10 @@ import ch.qos.logback.core.joran.spi.JoranException;
 //import org.peacekeeper.crypto.Registrar;
 
 
-public class MainActivity extends AppCompatActivity implements AsyncResponse {
+public class MainActivity extends AppCompatActivity{//implements AsyncResponse {
 //begin static
-static private final Logger	mLog = LoggerFactory.getLogger( MainActivity.class );
-static private final LoggerContext mLoggerContext = (LoggerContext)LoggerFactory.getILoggerFactory();
+static private final Logger mLog = LoggerFactory.getLogger(MainActivity.class);
+static private final LoggerContext mLoggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
 static private final ContextInitializer mContextInitializer	= new ContextInitializer( mLoggerContext );
 //end static
 
@@ -40,10 +40,10 @@ private pkUtility mUtility;
     Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
     setSupportActionBar(toolbar);
 
-    FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+    android.support.design.widget.FloatingActionButton fab = (android.support.design.widget.FloatingActionButton) findViewById(R.id.fab);
     fab.setOnClickListener(new View.OnClickListener() {
 	    @Override public void onClick(View view) {
-		    Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+		    android.support.design.widget.Snackbar.make(view, "Replace with your own action", android.support.design.widget.Snackbar.LENGTH_LONG)
 				    .setAction("Action", null).show();
 	    }
     });
@@ -68,12 +68,12 @@ private pkUtility mUtility;
 	mLog.debug("android.os.Build.SERIAL:\t" + android.os.Build.SERIAL);
 	//Registrar registrar = new Registrar(this);
 	//registrar.execute();
-//	String url = "https://localhost:8181//GaelWebSvcGF4//rest//GAEL//Status";
-	//String url = "http://localhost:8080/GaelWebSvcGF4/rest/GAEL/Status";
+//	String url = "https://192.168.1.242:8181/GaelWebSvcGF4/rest/GAEL/Status";
 	String url = "http://192.168.1.242:8080/GaelWebSvcGF4/rest/GAEL/Status";
 
 	org.peacekeeper.rest.Get myget = new org.peacekeeper.rest.Get(url);
-}
+}//onStart()
+
 @Override protected void onStop(){
 	mLog.trace("onStop():\t");
 
@@ -86,7 +86,7 @@ private pkUtility mUtility;
 	super.onDestroy();
 	mLog.trace("onDestroy():\t");
 	mLoggerContext.stop();//flush log
-	//mUtility.close();
+	mUtility.close();
 }
 
 @Override public boolean onCreateOptionsMenu(Menu menu) {
@@ -118,11 +118,6 @@ return true;
 
 return super.onOptionsItemSelected(item);
 }//onOptionsItemSelected
-
-@Override
-public void processFinish(final String output) {
-
-}
 
 
 // This fires when a notification is opened by tapping on it or one is received while the app is runnning.

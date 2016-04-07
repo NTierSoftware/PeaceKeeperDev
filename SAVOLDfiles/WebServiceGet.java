@@ -6,7 +6,6 @@ import org.peacekeeper.account.Contract;
 import org.peacekeeper.util.Deployment;
 import org.slf4j.*;
 
-import java.io.*;
 import java.net.URL;
 
 import javax.net.ssl.HttpsURLConnection;
